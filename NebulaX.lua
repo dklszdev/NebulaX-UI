@@ -1,30 +1,33 @@
 --[[
     ╔═══════════════════════════════════════════════════════════╗
-    ║                    NEBULAX UI LIBRARY                     ║
-    ║                   Version 1.0.0 - 2024                    ║
-    ║          Premium UI Library for Luau Executors            ║
+    ║              NEBULAX UI LIBRARY v2.0 AESTHETIC            ║
+    ║                   Ultra Modern Edition                    ║
+    ║          Optimized for Mobile & Desktop 2024              ║
     ╚═══════════════════════════════════════════════════════════╝
     
-    Features:
-    • Modern & Responsive Design
-    • Full Mobile Support
-    • Advanced Components
-    • Theme System
-    • Icon Support
+    ✨ Features:
+    • Glassmorphism Design
+    • Advanced Mobile Gestures
+    • Stunning Visual Effects
+    • Modern Color Palettes
+    • Enhanced Sliders & Components
     • Smooth Animations
-    • Configuration System
+    • Blur Effects
+    • Gradient Systems
+    • Touch Optimized
 --]]
 
 local NebulaX = {
-    Version = "1.0.0",
+    Version = "2.0.0",
     Author = "NebulaX Development",
     Windows = {},
     Notifications = {},
     Config = {},
+    IsMobileDevice = false,
 }
 
 -- ═══════════════════════════════════════════════════════════
--- SERVICES & DEPENDENCIES
+-- SERVICES
 -- ═══════════════════════════════════════════════════════════
 
 local CoreGui = game:GetService("CoreGui")
@@ -34,12 +37,13 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TextService = game:GetService("TextService")
+local GuiService = game:GetService("GuiService")
 
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 
 -- ═══════════════════════════════════════════════════════════
--- UTILITY FUNCTIONS
+-- ENHANCED UTILITY FUNCTIONS
 -- ═══════════════════════════════════════════════════════════
 
 local Utility = {}
@@ -50,14 +54,19 @@ end
 
 function Utility:IsTablet()
     local screenSize = workspace.CurrentCamera.ViewportSize
-    return UserInputService.TouchEnabled and (screenSize.X > 600 or screenSize.Y > 600)
+    return UserInputService.TouchEnabled and (screenSize.X > 768 or screenSize.Y > 768)
 end
 
 function Utility:GetPlatform()
+    if UserInputService.GamepadEnabled then return "Console" end
     if self:IsMobile() then
         return self:IsTablet() and "Tablet" or "Mobile"
     end
     return "Desktop"
+end
+
+function Utility:GetScreenSize()
+    return workspace.CurrentCamera.ViewportSize
 end
 
 function Utility:Tween(instance, properties, duration, style, direction, callback)
@@ -76,32 +85,73 @@ function Utility:Tween(instance, properties, duration, style, direction, callbac
     return tween
 end
 
+function Utility:Spring(instance, properties, callback)
+    return self:Tween(instance, properties, 0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, callback)
+end
+
 function Utility:CreateRipple(parent, x, y, color)
-    local ripple = Instance.new("ImageLabel")
+    local ripple = Instance.new("Frame")
     ripple.Name = "Ripple"
-    ripple.BackgroundTransparency = 1
-    ripple.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-    ripple.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
-    ripple.ImageTransparency = 0.5
+    ripple.BackgroundColor3 = color or Color3.fromRGB(255, 255, 255)
+    ripple.BackgroundTransparency = 0.5
     ripple.Position = UDim2.new(0, x, 0, y)
     ripple.Size = UDim2.new(0, 0, 0, 0)
     ripple.AnchorPoint = Vector2.new(0.5, 0.5)
     ripple.ZIndex = 10
     ripple.Parent = parent
     
-    local size = math.max(parent.AbsoluteSize.X, parent.AbsoluteSize.Y) * 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = ripple
+    
+    local size = math.max(parent.AbsoluteSize.X, parent.AbsoluteSize.Y) * 2.5
     
     Utility:Tween(ripple, {
         Size = UDim2.new(0, size, 0, size),
-        ImageTransparency = 1
-    }, 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, function()
+        BackgroundTransparency = 1
+    }, 0.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, function()
         ripple:Destroy()
     end)
+end
+
+function Utility:CreateGlow(parent, color, intensity)
+    local glow = Instance.new("ImageLabel")
+    glow.Name = "Glow"
+    glow.BackgroundTransparency = 1
+    glow.Image = "rbxassetid://5028857084"
+    glow.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
+    glow.ImageTransparency = 1 - (intensity or 0.3)
+    glow.ScaleType = Enum.ScaleType.Slice
+    glow.SliceCenter = Rect.new(24, 24, 276, 276)
+    glow.Size = UDim2.new(1, 40, 1, 40)
+    glow.Position = UDim2.new(0, -20, 0, -20)
+    glow.ZIndex = 0
+    glow.Parent = parent
+    return glow
+end
+
+function Utility:CreateShadow(parent, transparency)
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://5554236805"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = transparency or 0.7
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+    shadow.Size = UDim2.new(1, 40, 1, 40)
+    shadow.Position = UDim2.new(0, -20, 0, -20)
+    shadow.ZIndex = -1
+    shadow.Parent = parent
+    return shadow
 end
 
 function Utility:MakeDraggable(frame, dragHandle)
     dragHandle = dragHandle or frame
     local dragging, dragInput, dragStart, startPos
+    local smoothDrag = false
+    
+    local isMobile = self:IsMobile()
     
     dragHandle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or 
@@ -109,10 +159,12 @@ function Utility:MakeDraggable(frame, dragHandle)
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            smoothDrag = true
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
+                    smoothDrag = false
                 end
             end)
         end
@@ -128,21 +180,31 @@ function Utility:MakeDraggable(frame, dragHandle)
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            Utility:Tween(frame, {
-                Position = UDim2.new(
+            
+            if smoothDrag and not isMobile then
+                Utility:Tween(frame, {
+                    Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
+                }, 0.15, Enum.EasingStyle.Sine)
+            else
+                frame.Position = UDim2.new(
                     startPos.X.Scale,
                     startPos.X.Offset + delta.X,
                     startPos.Y.Scale,
                     startPos.Y.Offset + delta.Y
                 )
-            }, 0.1)
+            end
         end
     end)
 end
 
 function Utility:ApplyCorner(instance, radius)
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.CornerRadius = UDim.new(0, radius or 12)
     corner.Parent = instance
     return corner
 end
@@ -165,111 +227,270 @@ function Utility:ApplyGradient(instance, colorSequence, rotation)
     return gradient
 end
 
-function Utility:AddPadding(instance, all)
+function Utility:AddPadding(instance, all, top, bottom, left, right)
     local padding = Instance.new("UIPadding")
-    padding.PaddingTop = UDim.new(0, all or 10)
-    padding.PaddingBottom = UDim.new(0, all or 10)
-    padding.PaddingLeft = UDim.new(0, all or 10)
-    padding.PaddingRight = UDim.new(0, all or 10)
+    if all then
+        padding.PaddingTop = UDim.new(0, all)
+        padding.PaddingBottom = UDim.new(0, all)
+        padding.PaddingLeft = UDim.new(0, all)
+        padding.PaddingRight = UDim.new(0, all)
+    else
+        padding.PaddingTop = UDim.new(0, top or 10)
+        padding.PaddingBottom = UDim.new(0, bottom or 10)
+        padding.PaddingLeft = UDim.new(0, left or 10)
+        padding.PaddingRight = UDim.new(0, right or 10)
+    end
     padding.Parent = instance
     return padding
 end
 
+function Utility:CreateBlur(parent, size)
+    local blur = Instance.new("BlurEffect")
+    blur.Size = size or 10
+    blur.Parent = parent
+    return blur
+end
+
 function Utility:SaveConfig(name, data)
-    if not isfolder("NebulaX") then
-        makefolder("NebulaX")
-    end
-    writefile("NebulaX/" .. name .. ".json", HttpService:JSONEncode(data))
+    pcall(function()
+        if not isfolder("NebulaX") then
+            makefolder("NebulaX")
+        end
+        writefile("NebulaX/" .. name .. ".json", HttpService:JSONEncode(data))
+    end)
 end
 
 function Utility:LoadConfig(name)
-    if isfile("NebulaX/" .. name .. ".json") then
-        return HttpService:JSONDecode(readfile("NebulaX/" .. name .. ".json"))
-    end
-    return nil
+    local success, result = pcall(function()
+        if isfile("NebulaX/" .. name .. ".json") then
+            return HttpService:JSONDecode(readfile("NebulaX/" .. name .. ".json"))
+        end
+        return nil
+    end)
+    return success and result or nil
 end
 
 -- ═══════════════════════════════════════════════════════════
--- THEME SYSTEM
+-- MODERN THEME SYSTEM
 -- ═══════════════════════════════════════════════════════════
 
 local ThemeManager = {
-    CurrentTheme = "Dark",
+    CurrentTheme = "Aesthetic",
     Themes = {}
 }
 
-ThemeManager.Themes.Dark = {
-    Name = "Dark",
-    Background = Color3.fromRGB(20, 20, 25),
-    Secondary = Color3.fromRGB(30, 30, 35),
-    Tertiary = Color3.fromRGB(40, 40, 45),
-    Accent = Color3.fromRGB(88, 101, 242),
-    Text = Color3.fromRGB(255, 255, 255),
-    TextDark = Color3.fromRGB(180, 180, 180),
-    Success = Color3.fromRGB(67, 181, 129),
-    Warning = Color3.fromRGB(250, 166, 26),
-    Error = Color3.fromRGB(240, 71, 71),
-    Border = Color3.fromRGB(60, 60, 65),
+-- ✨ Aesthetic Modern Theme
+ThemeManager.Themes.Aesthetic = {
+    Name = "Aesthetic",
+    -- Backgrounds with glassmorphism
+    Background = Color3.fromRGB(15, 15, 20),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 15))
+    },
+    Secondary = Color3.fromRGB(25, 25, 35),
+    Tertiary = Color3.fromRGB(30, 30, 42),
+    
+    -- Accent colors - Modern Purple/Blue
+    Accent = Color3.fromRGB(138, 112, 255),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 112, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(94, 156, 255))
+    },
+    
+    -- Text
+    Text = Color3.fromRGB(245, 245, 255),
+    TextDark = Color3.fromRGB(150, 150, 170),
+    TextMuted = Color3.fromRGB(100, 100, 120),
+    
+    -- Status colors
+    Success = Color3.fromRGB(94, 234, 162),
+    Warning = Color3.fromRGB(255, 195, 113),
+    Error = Color3.fromRGB(255, 117, 127),
+    Info = Color3.fromRGB(116, 185, 255),
+    
+    -- UI Elements
+    Border = Color3.fromRGB(60, 60, 80),
+    Hover = Color3.fromRGB(40, 40, 55),
+    Active = Color3.fromRGB(138, 112, 255),
+    
+    -- Glass effect
+    GlassTransparency = 0.3,
+    BlurIntensity = 20,
 }
 
-ThemeManager.Themes.Light = {
-    Name = "Light",
-    Background = Color3.fromRGB(245, 245, 250),
-    Secondary = Color3.fromRGB(255, 255, 255),
-    Tertiary = Color3.fromRGB(235, 235, 240),
-    Accent = Color3.fromRGB(88, 101, 242),
-    Text = Color3.fromRGB(20, 20, 25),
-    TextDark = Color3.fromRGB(100, 100, 105),
-    Success = Color3.fromRGB(67, 181, 129),
-    Warning = Color3.fromRGB(250, 166, 26),
-    Error = Color3.fromRGB(240, 71, 71),
-    Border = Color3.fromRGB(220, 220, 225),
-}
-
-ThemeManager.Themes.Neon = {
-    Name = "Neon",
-    Background = Color3.fromRGB(10, 10, 15),
-    Secondary = Color3.fromRGB(15, 15, 20),
-    Tertiary = Color3.fromRGB(20, 20, 25),
-    Accent = Color3.fromRGB(255, 0, 255),
-    Text = Color3.fromRGB(255, 255, 255),
-    TextDark = Color3.fromRGB(200, 0, 200),
-    Success = Color3.fromRGB(0, 255, 150),
-    Warning = Color3.fromRGB(255, 255, 0),
-    Error = Color3.fromRGB(255, 0, 100),
-    Border = Color3.fromRGB(255, 0, 255),
-}
-
+-- 🌊 Ocean Breeze Theme
 ThemeManager.Themes.Ocean = {
     Name = "Ocean",
-    Background = Color3.fromRGB(15, 30, 45),
-    Secondary = Color3.fromRGB(25, 40, 55),
-    Tertiary = Color3.fromRGB(35, 50, 65),
-    Accent = Color3.fromRGB(52, 152, 219),
-    Text = Color3.fromRGB(255, 255, 255),
+    Background = Color3.fromRGB(12, 23, 38),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(12, 23, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 15, 25))
+    },
+    Secondary = Color3.fromRGB(20, 35, 55),
+    Tertiary = Color3.fromRGB(28, 45, 68),
+    
+    Accent = Color3.fromRGB(64, 224, 208),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 224, 208)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(79, 172, 254))
+    },
+    
+    Text = Color3.fromRGB(240, 250, 255),
     TextDark = Color3.fromRGB(150, 200, 220),
-    Success = Color3.fromRGB(46, 204, 113),
-    Warning = Color3.fromRGB(241, 196, 15),
-    Error = Color3.fromRGB(231, 76, 60),
+    TextMuted = Color3.fromRGB(100, 150, 180),
+    
+    Success = Color3.fromRGB(104, 211, 145),
+    Warning = Color3.fromRGB(255, 206, 86),
+    Error = Color3.fromRGB(255, 99, 132),
+    Info = Color3.fromRGB(79, 195, 247),
+    
     Border = Color3.fromRGB(52, 152, 219),
+    Hover = Color3.fromRGB(30, 50, 75),
+    Active = Color3.fromRGB(64, 224, 208),
+    
+    GlassTransparency = 0.25,
+    BlurIntensity = 18,
 }
 
-ThemeManager.Themes.Forest = {
-    Name = "Forest",
-    Background = Color3.fromRGB(20, 30, 20),
-    Secondary = Color3.fromRGB(30, 40, 30),
-    Tertiary = Color3.fromRGB(40, 50, 40),
-    Accent = Color3.fromRGB(67, 160, 71),
-    Text = Color3.fromRGB(255, 255, 255),
-    TextDark = Color3.fromRGB(165, 214, 167),
+-- 🌸 Cherry Blossom Theme
+ThemeManager.Themes.Cherry = {
+    Name = "Cherry",
+    Background = Color3.fromRGB(25, 15, 20),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 18, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 12, 18))
+    },
+    Secondary = Color3.fromRGB(35, 25, 32),
+    Tertiary = Color3.fromRGB(45, 32, 42),
+    
+    Accent = Color3.fromRGB(255, 128, 171),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 128, 171)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 175, 189))
+    },
+    
+    Text = Color3.fromRGB(255, 240, 245),
+    TextDark = Color3.fromRGB(200, 170, 185),
+    TextMuted = Color3.fromRGB(150, 120, 140),
+    
+    Success = Color3.fromRGB(129, 212, 250),
+    Warning = Color3.fromRGB(255, 213, 79),
+    Error = Color3.fromRGB(239, 83, 80),
+    Info = Color3.fromRGB(186, 104, 200),
+    
+    Border = Color3.fromRGB(255, 128, 171),
+    Hover = Color3.fromRGB(50, 35, 45),
+    Active = Color3.fromRGB(255, 128, 171),
+    
+    GlassTransparency = 0.3,
+    BlurIntensity = 22,
+}
+
+-- 🌆 Cyberpunk Theme
+ThemeManager.Themes.Cyberpunk = {
+    Name = "Cyberpunk",
+    Background = Color3.fromRGB(10, 10, 15),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 10, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 5, 10))
+    },
+    Secondary = Color3.fromRGB(18, 18, 25),
+    Tertiary = Color3.fromRGB(25, 25, 35),
+    
+    Accent = Color3.fromRGB(0, 255, 255),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+    },
+    
+    Text = Color3.fromRGB(0, 255, 255),
+    TextDark = Color3.fromRGB(100, 200, 255),
+    TextMuted = Color3.fromRGB(80, 150, 200),
+    
+    Success = Color3.fromRGB(57, 255, 20),
+    Warning = Color3.fromRGB(255, 234, 0),
+    Error = Color3.fromRGB(255, 0, 110),
+    Info = Color3.fromRGB(138, 43, 226),
+    
+    Border = Color3.fromRGB(0, 255, 255),
+    Hover = Color3.fromRGB(30, 30, 45),
+    Active = Color3.fromRGB(0, 255, 255),
+    
+    GlassTransparency = 0.2,
+    BlurIntensity = 25,
+}
+
+-- 🌙 Midnight Theme
+ThemeManager.Themes.Midnight = {
+    Name = "Midnight",
+    Background = Color3.fromRGB(8, 10, 20),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(13, 15, 28)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 7, 15))
+    },
+    Secondary = Color3.fromRGB(15, 18, 30),
+    Tertiary = Color3.fromRGB(22, 26, 42),
+    
+    Accent = Color3.fromRGB(147, 112, 219),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(147, 112, 219)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(106, 90, 205))
+    },
+    
+    Text = Color3.fromRGB(230, 230, 250),
+    TextDark = Color3.fromRGB(170, 170, 200),
+    TextMuted = Color3.fromRGB(120, 120, 150),
+    
     Success = Color3.fromRGB(102, 187, 106),
-    Warning = Color3.fromRGB(255, 193, 7),
+    Warning = Color3.fromRGB(255, 183, 77),
+    Error = Color3.fromRGB(239, 83, 80),
+    Info = Color3.fromRGB(100, 181, 246),
+    
+    Border = Color3.fromRGB(80, 80, 120),
+    Hover = Color3.fromRGB(25, 30, 48),
+    Active = Color3.fromRGB(147, 112, 219),
+    
+    GlassTransparency = 0.28,
+    BlurIntensity = 20,
+}
+
+-- 🌅 Sunset Theme
+ThemeManager.Themes.Sunset = {
+    Name = "Sunset",
+    Background = Color3.fromRGB(30, 15, 15),
+    BackgroundGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 20, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 10, 15))
+    },
+    Secondary = Color3.fromRGB(45, 25, 25),
+    Tertiary = Color3.fromRGB(55, 32, 32),
+    
+    Accent = Color3.fromRGB(255, 107, 107),
+    AccentGradient = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 107, 107)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 159, 64))
+    },
+    
+    Text = Color3.fromRGB(255, 245, 240),
+    TextDark = Color3.fromRGB(220, 180, 170),
+    TextMuted = Color3.fromRGB(180, 140, 130),
+    
+    Success = Color3.fromRGB(129, 199, 132),
+    Warning = Color3.fromRGB(255, 183, 77),
     Error = Color3.fromRGB(229, 115, 115),
-    Border = Color3.fromRGB(67, 160, 71),
+    Info = Color3.fromRGB(100, 181, 246),
+    
+    Border = Color3.fromRGB(255, 120, 120),
+    Hover = Color3.fromRGB(60, 35, 35),
+    Active = Color3.fromRGB(255, 107, 107),
+    
+    GlassTransparency = 0.32,
+    BlurIntensity = 18,
 }
 
 function ThemeManager:SetTheme(themeName, customAccent)
-    local theme = self.Themes[themeName] or self.Themes.Dark
+    local theme = self.Themes[themeName] or self.Themes.Aesthetic
     if customAccent then
         theme.Accent = customAccent
     end
@@ -278,7 +499,7 @@ function ThemeManager:SetTheme(themeName, customAccent)
 end
 
 function ThemeManager:GetTheme()
-    return self.Themes[self.CurrentTheme] or self.Themes.Dark
+    return self.Themes[self.CurrentTheme] or self.Themes.Aesthetic
 end
 
 function ThemeManager:CreateCustomTheme(name, colors)
@@ -286,97 +507,102 @@ function ThemeManager:CreateCustomTheme(name, colors)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- ICON SYSTEM
+-- ENHANCED ICON LIBRARY (Lucide Icons)
 -- ═══════════════════════════════════════════════════════════
 
 local IconLibrary = {
-    -- Material Design Icons (usando Lucide icons IDs de Roblox)
+    -- Navigation & UI
     home = "rbxassetid://10734896629",
+    menu = "rbxassetid://10747432175",
     settings = "rbxassetid://10734950309",
-    user = "rbxassetid://10747374131",
     search = "rbxassetid://10734898629",
-    check = "rbxassetid://10734896841",
-    x = "rbxassetid://10747384394",
+    filter = "rbxassetid://10747318989",
+    
+    -- Actions
     plus = "rbxassetid://10734896206",
     minus = "rbxassetid://10734898532",
-    edit = "rbxassetid://10734896554",
+    check = "rbxassetid://10734896841",
+    x = "rbxassetid://10747384394",
+    edit = "rbxassetid://10734898086",
     trash = "rbxassetid://10734896966",
     save = "rbxassetid://10734896099",
+    copy = "rbxassetid://10734896651",
     download = "rbxassetid://10734896975",
     upload = "rbxassetid://10734897508",
-    eye = "rbxassetid://10747318989",
-    ["eye-off"] = "rbxassetid://10747318658",
-    lock = "rbxassetid://10734897799",
-    unlock = "rbxassetid://10734898534",
-    star = "rbxassetid://10734896220",
-    heart = "rbxassetid://10734896852",
-    bell = "rbxassetid://10734896771",
+    refresh = "rbxassetid://10747373176",
+    
+    -- Arrows & Chevrons
+    ["arrow-up"] = "rbxassetid://10734297964",
+    ["arrow-down"] = "rbxassetid://10734296389",
+    ["arrow-left"] = "rbxassetid://10734294993",
+    ["arrow-right"] = "rbxassetid://10734296157",
+    ["chevron-up"] = "rbxassetid://10734896975",
+    ["chevron-down"] = "rbxassetid://10734896926",
+    ["chevron-left"] = "rbxassetid://10734896853",
+    ["chevron-right"] = "rbxassetid://10734896945",
+    
+    -- Status & Info
     info = "rbxassetid://10734896814",
     alert = "rbxassetid://10734896499",
     ["alert-circle"] = "rbxassetid://10734896206",
     ["check-circle"] = "rbxassetid://10734896841",
     ["x-circle"] = "rbxassetid://10734896644",
-    menu = "rbxassetid://10734896771",
-    ["chevron-down"] = "rbxassetid://10734896926",
-    ["chevron-up"] = "rbxassetid://10734896975",
-    ["chevron-left"] = "rbxassetid://10734896853",
-    ["chevron-right"] = "rbxassetid://10734896945",
-    copy = "rbxassetid://10734896651",
-    clipboard = "rbxassetid://10734896502",
-    folder = "rbxassetid://10734896814",
-    file = "rbxassetid://10734896744",
+    ["help-circle"] = "rbxassetid://10747384394",
+    
+    -- Media & Files
     image = "rbxassetid://10734896863",
-    play = "rbxassetid://10734896206",
-    pause = "rbxassetid://10734896975",
-    refresh = "rbxassetid://10734896945",
-    ["external-link"] = "rbxassetid://10734896918",
-    link = "rbxassetid://10734896852",
+    file = "rbxassetid://10734896744",
+    folder = "rbxassetid://10734896814",
+    ["folder-open"] = "rbxassetid://10734896918",
+    
+    -- User & Social
+    user = "rbxassetid://10747374131",
+    users = "rbxassetid://10747374131",
+    heart = "rbxassetid://10734896852",
+    star = "rbxassetid://10734896220",
+    bell = "rbxassetid://10734896771",
     mail = "rbxassetid://10734896863",
-    phone = "rbxassetid://10734896945",
-    calendar = "rbxassetid://10734896206",
-    clock = "rbxassetid://10734896502",
-    map = "rbxassetid://10734896863",
-    ["map-pin"] = "rbxassetid://10734896918",
-    filter = "rbxassetid://10734896744",
-    sort = "rbxassetid://10734897508",
-    grid = "rbxassetid://10734896852",
-    list = "rbxassetid://10734897799",
-    maximize = "rbxassetid://10734896863",
-    minimize = "rbxassetid://10734898532",
-    ["arrow-up"] = "rbxassetid://10734896220",
-    ["arrow-down"] = "rbxassetid://10734896206",
-    ["arrow-left"] = "rbxassetid://10734896107",
-    ["arrow-right"] = "rbxassetid://10734896206",
-    code = "rbxassetid://10734896502",
-    terminal = "rbxassetid://10734897508",
-    globe = "rbxassetid://10734896852",
-    wifi = "rbxassetid://10747384394",
-    database = "rbxassetid://10734896651",
-    server = "rbxassetid://10734950309",
-    cpu = "rbxassetid://10734896651",
-    ["hard-drive"] = "rbxassetid://10734896852",
-    package = "rbxassetid://10734896945",
-    box = "rbxassetid://10734896206",
-    gift = "rbxassetid://10734896814",
-    shopping = "rbxassetid://10734950309",
-    cart = "rbxassetid://10734896206",
-    credit = "rbxassetid://10734896651",
-    dollar = "rbxassetid://10734896744",
-    percent = "rbxassetid://10734896945",
-    zap = "rbxassetid://10747384394",
-    activity = "rbxassetid://10734896107",
-    trending = "rbxassetid://10734897508",
-    pie = "rbxassetid://10734896945",
-    bar = "rbxassetid://10734896206",
+    
+    -- Security
+    lock = "rbxassetid://10734897799",
+    unlock = "rbxassetid://10734898534",
+    eye = "rbxassetid://10747318989",
+    ["eye-off"] = "rbxassetid://10747318658",
+    shield = "rbxassetid://10734950309",
+    
+    -- Gaming
+    gamepad = "rbxassetid://10734896814",
     target = "rbxassetid://10734897508",
     crosshair = "rbxassetid://10734896651",
-    gamepad = "rbxassetid://10734896814",
-    sword = "rbxassetid://10734897508",
-    shield = "rbxassetid://10734950309",
-    crown = "rbxassetid://10734896651",
-    trophy = "rbxassetid://10734897508",
-    award = "rbxassetid://10734896206",
-    medal = "rbxassetid://10734896863",
+    zap = "rbxassetid://10747384394",
+    activity = "rbxassetid://10734296389",
+    
+    -- Tech
+    cpu = "rbxassetid://10734896651",
+    database = "rbxassetid://10734896651",
+    server = "rbxassetid://10734950309",
+    wifi = "rbxassetid://10747384394",
+    bluetooth = "rbxassetid://10734896206",
+    
+    -- Tools
+    tool = "rbxassetid://10734896945",
+    wrench = "rbxassetid://10747384394",
+    sliders = "rbxassetid://10734950309",
+    palette = "rbxassetid://10734896945",
+    
+    -- Layout
+    grid = "rbxassetid://10734896852",
+    list = "rbxassetid://10734897799",
+    layout = "rbxassetid://10734896863",
+    sidebar = "rbxassetid://10734897799",
+    
+    -- Other
+    sun = "rbxassetid://10734896220",
+    moon = "rbxassetid://10734897508",
+    cloud = "rbxassetid://10734896651",
+    flame = "rbxassetid://10747384394",
+    droplet = "rbxassetid://10734896744",
+    sparkles = "rbxassetid://10734896220",
 }
 
 function IconLibrary:Get(iconName)
@@ -384,25 +610,25 @@ function IconLibrary:Get(iconName)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- NOTIFICATION SYSTEM
+-- ENHANCED NOTIFICATION SYSTEM
 -- ═══════════════════════════════════════════════════════════
 
 local NotificationManager = {
     Container = nil,
     Queue = {},
     ActiveNotifications = 0,
+    MaxNotifications = 5,
 }
 
 function NotificationManager:Init()
     if self.Container then return end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "NebulaXNotifications"
+    screenGui.Name = "NebulaXNotifications_v2"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.DisplayOrder = 999999
     
-    -- Protección contra detección
     pcall(function()
         screenGui.Parent = CoreGui
     end)
@@ -411,21 +637,25 @@ function NotificationManager:Init()
         screenGui.Parent = Player.PlayerGui
     end
     
+    local isMobile = Utility:IsMobile()
+    
     local container = Instance.new("Frame")
     container.Name = "NotificationContainer"
     container.BackgroundTransparency = 1
-    container.Position = UDim2.new(1, -20, 0, 20)
-    container.Size = UDim2.new(0, 350, 1, -40)
-    container.AnchorPoint = Vector2.new(1, 0)
+    container.Position = isMobile and UDim2.new(0.5, 0, 0, 10) or UDim2.new(1, -20, 0, 20)
+    container.Size = isMobile and UDim2.new(0.9, 0, 0, 0) or UDim2.new(0, 380, 0, 0)
+    container.AnchorPoint = isMobile and Vector2.new(0.5, 0) or Vector2.new(1, 0)
+    container.AutomaticSize = Enum.AutomaticSize.Y
     container.Parent = screenGui
     
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 10)
+    listLayout.Padding = UDim.new(0, 12)
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    listLayout.HorizontalAlignment = isMobile and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Right
     listLayout.Parent = container
     
     self.Container = container
+    self.ScreenGui = screenGui
 end
 
 function NotificationManager:Create(options)
@@ -435,13 +665,15 @@ function NotificationManager:Create(options)
     local title = options.Title or "Notification"
     local description = options.Description or ""
     local duration = options.Duration or 5
-    local type = options.Type or "Info" -- Info, Success, Warning, Error
+    local type = options.Type or "Info"
     local icon = options.Icon
     local callback = options.Callback
     
     local theme = ThemeManager:GetTheme()
+    local isMobile = Utility:IsMobile()
+    
     local typeColors = {
-        Info = theme.Accent,
+        Info = theme.Info,
         Success = theme.Success,
         Warning = theme.Warning,
         Error = theme.Error,
@@ -457,33 +689,36 @@ function NotificationManager:Create(options)
     local accentColor = typeColors[type] or theme.Accent
     icon = icon or typeIcons[type]
     
-    -- Notification Frame
+    -- Remove oldest if too many
+    if self.ActiveNotifications >= self.MaxNotifications then
+        local oldest = self.Container:FindFirstChild("Notification")
+        if oldest then oldest:Destroy() end
+    end
+    
+    -- Notification Container
     local notification = Instance.new("Frame")
     notification.Name = "Notification"
     notification.BackgroundColor3 = theme.Secondary
+    notification.BackgroundTransparency = 0.1
     notification.Size = UDim2.new(1, 0, 0, 0)
-    notification.Position = UDim2.new(1, 50, 0, 0)
+    notification.Position = UDim2.new(isMobile and 0.5 or 1, isMobile and 0 or 50, 0, 0)
+    notification.AnchorPoint = isMobile and Vector2.new(0.5, 0) or Vector2.new(0, 0)
     notification.ClipsDescendants = true
     notification.Parent = self.Container
     
-    Utility:ApplyCorner(notification, 10)
-    Utility:ApplyStroke(notification, accentColor, 2, 0.5)
+    Utility:ApplyCorner(notification, isMobile and 16 or 14)
+    Utility:CreateShadow(notification, 0.6)
     
-    -- Shadow effect
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxassetid://5554236805"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.7
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(23, 23, 277, 277)
-    shadow.Size = UDim2.new(1, 30, 1, 30)
-    shadow.Position = UDim2.new(0, -15, 0, -15)
-    shadow.ZIndex = 0
-    shadow.Parent = notification
+    -- Glass effect
+    local glassOverlay = Instance.new("Frame")
+    glassOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glassOverlay.BackgroundTransparency = 0.95
+    glassOverlay.Size = UDim2.new(1, 0, 1, 0)
+    glassOverlay.Parent = notification
     
-    -- Accent bar
+    Utility:ApplyCorner(glassOverlay, isMobile and 16 or 14)
+    
+    -- Accent Bar (Left side)
     local accentBar = Instance.new("Frame")
     accentBar.Name = "AccentBar"
     accentBar.BackgroundColor3 = accentColor
@@ -491,61 +726,86 @@ function NotificationManager:Create(options)
     accentBar.Size = UDim2.new(0, 4, 1, 0)
     accentBar.Parent = notification
     
-    -- Content container
+    Utility:ApplyGradient(accentBar, ColorSequence.new{
+        ColorSequenceKeypoint.new(0, accentColor),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(
+            math.min(accentColor.R * 255 + 30, 255),
+            math.min(accentColor.G * 255 + 30, 255),
+            math.min(accentColor.B * 255 + 30, 255)
+        ))
+    }, 90)
+    
+    -- Glow effect
+    Utility:CreateGlow(notification, accentColor, 0.2)
+    
+    -- Content Container
     local content = Instance.new("Frame")
     content.Name = "Content"
     content.BackgroundTransparency = 1
-    content.Position = UDim2.new(0, 15, 0, 15)
-    content.Size = UDim2.new(1, -30, 1, -30)
+    content.Position = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 18 : 16)
+    content.Size = UDim2.new(1, -(isMobile and 40 : 36), 1, -(isMobile and 36 : 32))
     content.Parent = notification
     
     -- Icon
     if icon then
+        local iconBG = Instance.new("Frame")
+        iconBG.Name = "IconBG"
+        iconBG.BackgroundColor3 = accentColor
+        iconBG.BackgroundTransparency = 0.9
+        iconBG.Size = UDim2.new(0, isMobile and 44 : 40, 0, isMobile and 44 : 40)
+        iconBG.Position = UDim2.new(0, 0, 0, 0)
+        iconBG.Parent = content
+        
+        Utility:ApplyCorner(iconBG, isMobile and 12 : 10)
+        
         local iconImage = Instance.new("ImageLabel")
         iconImage.Name = "Icon"
         iconImage.BackgroundTransparency = 1
         iconImage.Image = IconLibrary:Get(icon)
         iconImage.ImageColor3 = accentColor
-        iconImage.Size = UDim2.new(0, 24, 0, 24)
-        iconImage.Position = UDim2.new(0, 0, 0, 0)
-        iconImage.Parent = content
+        iconImage.Size = UDim2.new(0, isMobile and 26 : 24, 0, isMobile and 26 : 24)
+        iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+        iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+        iconImage.Parent = iconBG
     end
     
     -- Title
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Name = "Title"
     titleLabel.BackgroundTransparency = 1
-    titleLabel.Position = UDim2.new(0, icon and 34 or 0, 0, 0)
-    titleLabel.Size = UDim2.new(1, -(icon and 64 or 30), 0, 20)
+    titleLabel.Position = UDim2.new(0, icon and (isMobile and 54 : 50) or 0, 0, 0)
+    titleLabel.Size = UDim2.new(1, -(icon and (isMobile and 84 : 80) or (isMobile and 40 : 30)), 0, isMobile and 24 : 22)
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Text = title
     titleLabel.TextColor3 = theme.Text
-    titleLabel.TextSize = 14
+    titleLabel.TextSize = isMobile and 15 : 14
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
     titleLabel.Parent = content
     
     -- Description
-    local descLabel = Instance.new("TextLabel")
-    descLabel.Name = "Description"
-    descLabel.BackgroundTransparency = 1
-    descLabel.Position = UDim2.new(0, icon and 34 or 0, 0, 24)
-    descLabel.Size = UDim2.new(1, -(icon and 64 or 30), 1, -24)
-    descLabel.Font = Enum.Font.Gotham
-    descLabel.Text = description
-    descLabel.TextColor3 = theme.TextDark
-    descLabel.TextSize = 12
-    descLabel.TextXAlignment = Enum.TextXAlignment.Left
-    descLabel.TextYAlignment = Enum.TextYAlignment.Top
-    descLabel.TextWrapped = true
-    descLabel.Parent = content
+    if description ~= "" then
+        local descLabel = Instance.new("TextLabel")
+        descLabel.Name = "Description"
+        descLabel.BackgroundTransparency = 1
+        descLabel.Position = UDim2.new(0, icon and (isMobile and 54 : 50) or 0, 0, isMobile and 28 : 26)
+        descLabel.Size = UDim2.new(1, -(icon and (isMobile and 84 : 80) or (isMobile and 40 : 30)), 1, -(isMobile and 28 : 26))
+        descLabel.Font = Enum.Font.Gotham
+        descLabel.Text = description
+        descLabel.TextColor3 = theme.TextDark
+        descLabel.TextSize = isMobile and 13 : 12
+        descLabel.TextXAlignment = Enum.TextXAlignment.Left
+        descLabel.TextYAlignment = Enum.TextYAlignment.Top
+        descLabel.TextWrapped = true
+        descLabel.Parent = content
+    end
     
-    -- Close button
+    -- Close Button
     local closeBtn = Instance.new("TextButton")
     closeBtn.Name = "CloseButton"
     closeBtn.BackgroundTransparency = 1
-    closeBtn.Position = UDim2.new(1, -30, 0, 0)
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -(isMobile and 40 : 30), 0, 0)
+    closeBtn.Size = UDim2.new(0, isMobile and 40 : 30, 0, isMobile and 40 : 30)
     closeBtn.Text = ""
     closeBtn.Parent = content
     
@@ -553,50 +813,63 @@ function NotificationManager:Create(options)
     closeIcon.BackgroundTransparency = 1
     closeIcon.Image = IconLibrary:Get("x")
     closeIcon.ImageColor3 = theme.TextDark
-    closeIcon.Size = UDim2.new(0, 18, 0, 18)
+    closeIcon.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
     closeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
     closeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
     closeIcon.Parent = closeBtn
     
-    -- Progress bar
-    local progressContainer = Instance.new("Frame")
-    progressContainer.Name = "ProgressContainer"
-    progressContainer.BackgroundColor3 = theme.Tertiary
-    progressContainer.BorderSizePixel = 0
-    progressContainer.Position = UDim2.new(0, 0, 1, -3)
-    progressContainer.Size = UDim2.new(1, 0, 0, 3)
-    progressContainer.Parent = notification
+    -- Progress Bar
+    local progressBG = Instance.new("Frame")
+    progressBG.Name = "ProgressBG"
+    progressBG.BackgroundColor3 = theme.Tertiary
+    progressBG.BackgroundTransparency = 0.5
+    progressBG.BorderSizePixel = 0
+    progressBG.Position = UDim2.new(0, 4, 1, -4)
+    progressBG.Size = UDim2.new(1, -8, 0, 3)
+    progressBG.Parent = notification
+    
+    Utility:ApplyCorner(progressBG, 2)
     
     local progressBar = Instance.new("Frame")
     progressBar.Name = "ProgressBar"
     progressBar.BackgroundColor3 = accentColor
     progressBar.BorderSizePixel = 0
     progressBar.Size = UDim2.new(1, 0, 1, 0)
-    progressBar.Parent = progressContainer
+    progressBar.Parent = progressBG
+    
+    Utility:ApplyCorner(progressBar, 2)
     
     -- Calculate height
+    local baseHeight = isMobile and 90 : 80
+    if description == "" then
+        baseHeight = isMobile and 70 : 60
+    end
+    
     local textSize = TextService:GetTextSize(
         description,
-        12,
+        isMobile and 13 : 12,
         Enum.Font.Gotham,
-        Vector2.new(descLabel.AbsoluteSize.X, math.huge)
+        Vector2.new(content.AbsoluteSize.X - (icon and (isMobile and 84 : 80) or (isMobile and 40 : 30)), math.huge)
     )
     
-    local finalHeight = math.max(80, math.min(textSize.Y + 60, 150))
+    local finalHeight = math.max(baseHeight, math.min(textSize.Y + (isMobile and 56 : 50), isMobile and 150 : 120))
     
     -- Animations
     self.ActiveNotifications = self.ActiveNotifications + 1
     
-    -- Slide in
-    Utility:Tween(notification, {
-        Position = UDim2.new(1, 0, 0, 0),
-        Size = UDim2.new(1, 0, 0, finalHeight)
-    }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    notification.Size = UDim2.new(1, 0, 0, 0)
+    
+    -- Slide & expand animation
+    Utility:Spring(notification, {
+        Size = UDim2.new(1, 0, 0, finalHeight),
+        Position = UDim2.new(isMobile and 0.5 or 1, 0, 0, 0),
+        BackgroundTransparency = 0.1
+    })
     
     -- Progress animation
     Utility:Tween(progressBar, {
         Size = UDim2.new(0, 0, 1, 0)
-    }, duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+    }, duration, Enum.EasingStyle.Linear)
     
     -- Auto close
     local closed = false
@@ -605,11 +878,12 @@ function NotificationManager:Create(options)
         closed = true
         
         Utility:Tween(notification, {
-            Position = UDim2.new(1, 50, 0, 0),
-            Size = UDim2.new(1, 0, 0, 0)
-        }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In, function()
+            Position = UDim2.new(isMobile and 0.5 or 1, isMobile and 0 : 100, 0, 0),
+            Size = UDim2.new(1, 0, 0, 0),
+            BackgroundTransparency = 1
+        }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In, function()
             notification:Destroy()
-            self.ActiveNotifications = self.ActiveNotifications - 1
+            self.ActiveNotifications = math.max(0, self.ActiveNotifications - 1)
         end)
     end
     
@@ -620,17 +894,24 @@ function NotificationManager:Create(options)
     
     -- Hover effects
     closeBtn.MouseEnter:Connect(function()
-        Utility:Tween(closeIcon, {ImageColor3 = theme.Text}, 0.2)
+        Utility:Spring(closeIcon, {
+            ImageColor3 = theme.Text,
+            Size = UDim2.new(0, (isMobile and 22 : 20), 0, (isMobile and 22 : 20))
+        })
     end)
     
     closeBtn.MouseLeave:Connect(function()
-        Utility:Tween(closeIcon, {ImageColor3 = theme.TextDark}, 0.2)
+        Utility:Spring(closeIcon, {
+            ImageColor3 = theme.TextDark,
+            Size = UDim2.new(0, (isMobile and 20 : 18), 0, (isMobile and 20 : 18))
+        })
     end)
     
     -- Click callback
     if callback then
         notification.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.Touch then
                 callback()
                 closeNotification()
             end
@@ -641,7 +922,7 @@ function NotificationManager:Create(options)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- TOOLTIP SYSTEM
+-- ENHANCED TOOLTIP SYSTEM
 -- ═══════════════════════════════════════════════════════════
 
 local TooltipManager = {
@@ -653,7 +934,7 @@ function TooltipManager:Init()
     if self.Container then return end
     
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "NebulaXTooltips"
+    screenGui.Name = "NebulaXTooltips_v2"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.DisplayOrder = 999998
@@ -670,6 +951,8 @@ function TooltipManager:Init()
 end
 
 function TooltipManager:Show(text, parent)
+    if Utility:IsMobile() then return end -- Disable tooltips on mobile
+    
     self:Init()
     self:Hide()
     
@@ -678,19 +961,21 @@ function TooltipManager:Show(text, parent)
     local tooltip = Instance.new("Frame")
     tooltip.Name = "Tooltip"
     tooltip.BackgroundColor3 = theme.Tertiary
+    tooltip.BackgroundTransparency = 0.05
     tooltip.BorderSizePixel = 0
     tooltip.Size = UDim2.new(0, 0, 0, 0)
     tooltip.ZIndex = 10
     tooltip.Parent = self.Container
     
-    Utility:ApplyCorner(tooltip, 6)
-    Utility:ApplyStroke(tooltip, theme.Border, 1, 0.5)
+    Utility:ApplyCorner(tooltip, 8)
+    Utility:CreateShadow(tooltip, 0.5)
+    Utility:CreateGlow(tooltip, theme.Accent, 0.15)
     
     local textLabel = Instance.new("TextLabel")
     textLabel.BackgroundTransparency = 1
-    textLabel.Size = UDim2.new(1, -16, 1, -12)
-    textLabel.Position = UDim2.new(0, 8, 0, 6)
-    textLabel.Font = Enum.Font.Gotham
+    textLabel.Size = UDim2.new(1, -20, 1, -16)
+    textLabel.Position = UDim2.new(0, 10, 0, 8)
+    textLabel.Font = Enum.Font.GothamMedium
     textLabel.Text = text
     textLabel.TextColor3 = theme.Text
     textLabel.TextSize = 12
@@ -700,11 +985,11 @@ function TooltipManager:Show(text, parent)
     local textSize = TextService:GetTextSize(
         text,
         12,
-        Enum.Font.Gotham,
+        Enum.Font.GothamMedium,
         Vector2.new(300, math.huge)
     )
     
-    tooltip.Size = UDim2.new(0, textSize.X + 16, 0, textSize.Y + 12)
+    tooltip.Size = UDim2.new(0, textSize.X + 20, 0, textSize.Y + 16)
     
     -- Position near mouse
     local updatePosition = function()
@@ -717,8 +1002,8 @@ function TooltipManager:Show(text, parent)
     local connection
     connection = RunService.RenderStepped:Connect(updatePosition)
     
-    Utility:Tween(tooltip, {BackgroundTransparency = 0}, 0.15)
-    Utility:Tween(textLabel, {TextTransparency = 0}, 0.15)
+    Utility:Spring(tooltip, {BackgroundTransparency = 0.05})
+    Utility:Spring(textLabel, {TextTransparency = 0})
     
     self.CurrentTooltip = {
         Frame = tooltip,
@@ -741,6 +1026,8 @@ function TooltipManager:Hide()
 end
 
 function TooltipManager:Attach(element, text)
+    if Utility:IsMobile() then return end
+    
     element.MouseEnter:Connect(function()
         self:Show(text, element)
     end)
@@ -751,7 +1038,7 @@ function TooltipManager:Attach(element, text)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- WINDOW CLASS
+-- WINDOW CLASS - ENHANCED
 -- ═══════════════════════════════════════════════════════════
 
 local Window = {}
@@ -762,10 +1049,20 @@ function Window:Create(options)
     
     options = options or {}
     self.Name = options.Name or "NebulaX UI"
-    self.Subtitle = options.Subtitle or "Premium UI Library"
+    self.Subtitle = options.Subtitle or "v2.0 Aesthetic"
     self.MobileSupport = options.MobileSupport ~= false
-    self.Theme = ThemeManager:SetTheme(options.Theme or "Dark", options.AccentColor)
-    self.Size = options.Size or UDim2.new(0, 580, 0, 480)
+    self.Theme = ThemeManager:SetTheme(options.Theme or "Aesthetic", options.AccentColor)
+    
+    local isMobile = Utility:IsMobile()
+    local screenSize = Utility:GetScreenSize()
+    
+    -- Responsive sizing
+    if isMobile then
+        self.Size = options.Size or UDim2.new(0.95, 0, 0, math.min(screenSize.Y * 0.8, 650))
+    else
+        self.Size = options.Size or UDim2.new(0, 620, 0, 520)
+    end
+    
     self.MinSize = options.MinSize or Vector2.new(400, 300)
     self.Position = options.Position
     self.SaveConfig = options.SaveConfig ~= false
@@ -776,28 +1073,29 @@ function Window:Create(options)
     self.CurrentTab = nil
     self.Minimized = false
     self.Visible = true
-    
-    -- Ajustar para móvil
-    local isMobile = Utility:IsMobile()
-    if isMobile and self.MobileSupport then
-        self.Size = UDim2.new(0.95, 0, 0, 500)
-    end
+    self.IsMobile = isMobile
     
     self:CreateUI()
-    self:LoadConfiguration()
+    
+    task.delay(0.5, function()
+        self:LoadConfiguration()
+    end)
     
     return self
 end
 
 function Window:CreateUI()
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
     -- Screen GUI
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "NebulaX_" .. self.Name
+    screenGui.Name = "NebulaX_v2_" .. self.Name
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.DisplayOrder = 100
+    screenGui.IgnoreGuiInset = true
     
-    -- Protección
     pcall(function()
         screenGui.Parent = CoreGui
     end)
@@ -811,7 +1109,8 @@ function Window:CreateUI()
     -- Main Container
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.BackgroundColor3 = self.Theme.Background
+    mainFrame.BackgroundColor3 = theme.Background
+    mainFrame.BackgroundTransparency = 0.05
     mainFrame.BorderSizePixel = 0
     mainFrame.Size = self.Size
     mainFrame.Position = self.Position or UDim2.new(0.5, 0, 0.5, 0)
@@ -819,145 +1118,213 @@ function Window:CreateUI()
     mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
     
-    Utility:ApplyCorner(mainFrame, 12)
-    Utility:ApplyStroke(mainFrame, self.Theme.Border, 1, 0.6)
+    Utility:ApplyCorner(mainFrame, isMobile and 20 : 16)
+    
+    -- Glass/Blur overlay
+    local glassOverlay = Instance.new("Frame")
+    glassOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glassOverlay.BackgroundTransparency = 0.97
+    glassOverlay.Size = UDim2.new(1, 0, 1, 0)
+    glassOverlay.Parent = mainFrame
+    
+    Utility:ApplyCorner(glassOverlay, isMobile and 20 : 16)
+    
+    -- Background Gradient
+    Utility:ApplyGradient(mainFrame, theme.BackgroundGradient, 135)
+    
+    -- Enhanced Shadow
+    Utility:CreateShadow(mainFrame, 0.4)
+    
+    -- Accent Glow
+    Utility:CreateGlow(mainFrame, theme.Accent, 0.1)
+    
+    -- Border
+    Utility:ApplyStroke(mainFrame, theme.Border, 1, 0.7)
     
     self.MainFrame = mainFrame
     
-    -- Shadow
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxassetid://5554236805"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.5
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(23, 23, 277, 277)
-    shadow.Size = UDim2.new(1, 40, 1, 40)
-    shadow.Position = UDim2.new(0, -20, 0, -20)
-    shadow.ZIndex = 0
-    shadow.Parent = mainFrame
-    
-    -- Header
+    -- Create UI Elements
     self:CreateHeader()
-    
-    -- Tab Container
     self:CreateTabContainer()
-    
-    -- Content Area
     self:CreateContentArea()
-    
-    -- Footer
     self:CreateFooter()
     
-    -- Watermark
     if self.Watermark then
         self:CreateWatermark()
     end
     
     -- Make draggable
-    Utility:MakeDraggable(mainFrame, self.Header)
+    if not isMobile then
+        Utility:MakeDraggable(mainFrame, self.Header)
+    end
     
-    -- Toggle visibility keybind (Right Shift por defecto)
+    -- Toggle keybind
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.RightShift then
+        if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.LeftControl then
             self:Toggle()
         end
     end)
+    
+    -- Mobile swipe to minimize
+    if isMobile then
+        local swipeStart = nil
+        local swipeThreshold = 50
+        
+        self.Header.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                swipeStart = input.Position
+            end
+        end)
+        
+        self.Header.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and swipeStart then
+                local swipeDelta = input.Position - swipeStart
+                if swipeDelta.Y > swipeThreshold then
+                    self:Minimize()
+                end
+                swipeStart = nil
+            end
+        end)
+    end
 end
 
 function Window:CreateHeader()
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
+    local headerHeight = isMobile and 70 : 60
+    
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.BackgroundColor3 = self.Theme.Secondary
+    header.BackgroundColor3 = theme.Secondary
+    header.BackgroundTransparency = 0.1
     header.BorderSizePixel = 0
-    header.Size = UDim2.new(1, 0, 0, 50)
+    header.Size = UDim2.new(1, 0, 0, headerHeight)
     header.Parent = self.MainFrame
     
-    Utility:ApplyCorner(header, 12)
+    Utility:ApplyCorner(header, isMobile and 20 : 16)
     
-    -- Fix corner (solo arriba)
+    -- Glass effect
+    local headerGlass = Instance.new("Frame")
+    headerGlass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    headerGlass.BackgroundTransparency = 0.96
+    headerGlass.Size = UDim2.new(1, 0, 1, 0)
+    headerGlass.Parent = header
+    
+    Utility:ApplyCorner(headerGlass, isMobile and 20 : 16)
+    
+    -- Fix corner bottom
     local cornerFix = Instance.new("Frame")
-    cornerFix.BackgroundColor3 = self.Theme.Secondary
+    cornerFix.BackgroundColor3 = theme.Secondary
+    cornerFix.BackgroundTransparency = 0.1
     cornerFix.BorderSizePixel = 0
-    cornerFix.Position = UDim2.new(0, 0, 1, -12)
-    cornerFix.Size = UDim2.new(1, 0, 0, 12)
+    cornerFix.Position = UDim2.new(0, 0, 1, -15)
+    cornerFix.Size = UDim2.new(1, 0, 0, 15)
     cornerFix.Parent = header
     
-    -- Accent line
+    -- Accent gradient line
     local accentLine = Instance.new("Frame")
     accentLine.Name = "AccentLine"
-    accentLine.BackgroundColor3 = self.Theme.Accent
+    accentLine.BackgroundColor3 = theme.Accent
     accentLine.BorderSizePixel = 0
     accentLine.Position = UDim2.new(0, 0, 1, 0)
-    accentLine.Size = UDim2.new(1, 0, 0, 2)
+    accentLine.Size = UDim2.new(1, 0, 0, 3)
     accentLine.Parent = header
     
-    -- Logo/Icon
+    Utility:ApplyGradient(accentLine, theme.AccentGradient, 90)
+    
+    -- Logo Container
+    local logoContainer = Instance.new("Frame")
+    logoContainer.Name = "LogoContainer"
+    logoContainer.BackgroundColor3 = theme.Accent
+    logoContainer.BackgroundTransparency = 0.9
+    logoContainer.Position = UDim2.new(0, isMobile and 20 : 18, 0.5, 0)
+    logoContainer.Size = UDim2.new(0, isMobile and 42 : 38, 0, isMobile and 42 : 38)
+    logoContainer.AnchorPoint = Vector2.new(0, 0.5)
+    logoContainer.Parent = header
+    
+    Utility:ApplyCorner(logoContainer, isMobile and 12 : 10)
+    Utility:CreateGlow(logoContainer, theme.Accent, 0.25)
+    
     local logo = Instance.new("ImageLabel")
     logo.Name = "Logo"
     logo.BackgroundTransparency = 1
-    logo.Image = IconLibrary:Get("zap")
-    logo.ImageColor3 = self.Theme.Accent
-    logo.Position = UDim2.new(0, 15, 0.5, 0)
-    logo.Size = UDim2.new(0, 28, 0, 28)
-    logo.AnchorPoint = Vector2.new(0, 0.5)
-    logo.Parent = header
+    logo.Image = IconLibrary:Get("sparkles")
+    logo.ImageColor3 = theme.Accent
+    logo.Position = UDim2.new(0.5, 0, 0.5, 0)
+    logo.Size = UDim2.new(0, isMobile and 24 : 22, 0, isMobile and 24 : 22)
+    logo.AnchorPoint = Vector2.new(0.5, 0.5)
+    logo.Parent = logoContainer
     
-    -- Title
+    -- Spinning animation
+    RunService.RenderStepped:Connect(function()
+        logo.Rotation = logo.Rotation + 0.5
+    end)
+    
+    -- Title Container
+    local titleContainer = Instance.new("Frame")
+    titleContainer.BackgroundTransparency = 1
+    titleContainer.Position = UDim2.new(0, isMobile and 75 : 68, 0, isMobile and 15 : 12)
+    titleContainer.Size = UDim2.new(0.5, -(isMobile and 75 : 68), 1, -(isMobile and 30 : 24))
+    titleContainer.Parent = header
+    
     local title = Instance.new("TextLabel")
     title.Name = "Title"
     title.BackgroundTransparency = 1
-    title.Position = UDim2.new(0, 50, 0, 8)
-    title.Size = UDim2.new(0.6, -50, 0, 18)
-    title.Font = Enum.Font.GothamBold
+    title.Size = UDim2.new(1, 0, 0, isMobile and 22 : 20)
+    title.Font = Enum.Font.GothamBlack
     title.Text = self.Name
-    title.TextColor3 = self.Theme.Text
-    title.TextSize = 16
+    title.TextColor3 = theme.Text
+    title.TextSize = isMobile and 18 : 16
     title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = header
+    title.TextTruncate = Enum.TextTruncate.AtEnd
+    title.Parent = titleContainer
     
-    -- Subtitle
+    -- Title gradient
+    Utility:ApplyGradient(title, ColorSequence.new{
+        ColorSequenceKeypoint.new(0, theme.Text),
+        ColorSequenceKeypoint.new(1, theme.Accent)
+    }, 90)
+    
     local subtitle = Instance.new("TextLabel")
     subtitle.Name = "Subtitle"
     subtitle.BackgroundTransparency = 1
-    subtitle.Position = UDim2.new(0, 50, 0, 26)
-    subtitle.Size = UDim2.new(0.6, -50, 0, 14)
-    subtitle.Font = Enum.Font.Gotham
+    subtitle.Position = UDim2.new(0, 0, 0, isMobile and 24 : 22)
+    subtitle.Size = UDim2.new(1, 0, 0, isMobile and 16 : 14)
+    subtitle.Font = Enum.Font.GothamMedium
     subtitle.Text = self.Subtitle
-    subtitle.TextColor3 = self.Theme.TextDark
-    subtitle.TextSize = 11
+    subtitle.TextColor3 = theme.TextDark
+    subtitle.TextSize = isMobile and 13 : 11
     subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    subtitle.Parent = header
+    subtitle.TextTruncate = Enum.TextTruncate.AtEnd
+    subtitle.Parent = titleContainer
     
     -- Control Buttons
     local controlsContainer = Instance.new("Frame")
     controlsContainer.Name = "Controls"
     controlsContainer.BackgroundTransparency = 1
-    controlsContainer.Position = UDim2.new(1, -120, 0.5, 0)
-    controlsContainer.Size = UDim2.new(0, 120, 0, 30)
+    controlsContainer.Position = UDim2.new(1, -(isMobile and 140 : 130), 0.5, 0)
+    controlsContainer.Size = UDim2.new(0, isMobile and 130 : 120, 0, isMobile and 40 : 36)
     controlsContainer.AnchorPoint = Vector2.new(0, 0.5)
     controlsContainer.Parent = header
     
     local controlsLayout = Instance.new("UIListLayout")
     controlsLayout.FillDirection = Enum.FillDirection.Horizontal
     controlsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-    controlsLayout.Padding = UDim.new(0, 8)
+    controlsLayout.Padding = UDim.new(0, isMobile and 10 : 8)
     controlsLayout.Parent = controlsContainer
     
-    -- Minimize Button
-    local minimizeBtn = self:CreateControlButton(controlsContainer, "minimize", function()
+    -- Create control buttons
+    self:CreateControlButton(controlsContainer, "minimize", function()
         self:Minimize()
     end)
     
-    -- Settings Button
-    local settingsBtn = self:CreateControlButton(controlsContainer, "settings", function()
+    self:CreateControlButton(controlsContainer, "settings", function()
         self:OpenSettings()
     end)
     
-    -- Close Button
-    local closeBtn = self:CreateControlButton(controlsContainer, "x", function()
+    self:CreateControlButton(controlsContainer, "x", function()
         self:Destroy()
     end)
     
@@ -965,77 +1332,120 @@ function Window:CreateHeader()
 end
 
 function Window:CreateControlButton(parent, icon, callback)
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
+    local btnSize = isMobile and 36 : 32
+    
     local button = Instance.new("TextButton")
     button.Name = icon .. "Button"
-    button.BackgroundColor3 = self.Theme.Tertiary
+    button.BackgroundColor3 = theme.Tertiary
+    button.BackgroundTransparency = 0.3
     button.BorderSizePixel = 0
-    button.Size = UDim2.new(0, 30, 0, 30)
+    button.Size = UDim2.new(0, btnSize, 0, btnSize)
     button.AutoButtonColor = false
     button.Text = ""
     button.Parent = parent
     
-    Utility:ApplyCorner(button, 6)
+    Utility:ApplyCorner(button, isMobile and 10 : 8)
     
     local iconImage = Instance.new("ImageLabel")
     iconImage.Name = "Icon"
     iconImage.BackgroundTransparency = 1
     iconImage.Image = IconLibrary:Get(icon)
-    iconImage.ImageColor3 = self.Theme.TextDark
+    iconImage.ImageColor3 = theme.TextDark
     iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
-    iconImage.Size = UDim2.new(0, 16, 0, 16)
+    iconImage.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
     iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
     iconImage.Parent = button
     
     button.MouseButton1Click:Connect(function()
-        Utility:CreateRipple(button, button.AbsoluteSize.X/2, button.AbsoluteSize.Y/2, self.Theme.Accent)
+        Utility:CreateRipple(button, button.AbsoluteSize.X/2, button.AbsoluteSize.Y/2, theme.Accent)
         if callback then callback() end
     end)
     
     button.MouseEnter:Connect(function()
-        Utility:Tween(button, {BackgroundColor3 = self.Theme.Accent}, 0.2)
-        Utility:Tween(iconImage, {ImageColor3 = self.Theme.Text}, 0.2)
+        Utility:Spring(button, {
+            BackgroundColor3 = theme.Accent,
+            BackgroundTransparency = 0.1
+        })
+        Utility:Spring(iconImage, {
+            ImageColor3 = theme.Text,
+            Size = UDim2.new(0, (isMobile and 22 : 20), 0, (isMobile and 22 : 20))
+        })
     end)
     
     button.MouseLeave:Connect(function()
-        Utility:Tween(button, {BackgroundColor3 = self.Theme.Tertiary}, 0.2)
-        Utility:Tween(iconImage, {ImageColor3 = self.Theme.TextDark}, 0.2)
+        Utility:Spring(button, {
+            BackgroundColor3 = theme.Tertiary,
+            BackgroundTransparency = 0.3
+        })
+        Utility:Spring(iconImage, {
+            ImageColor3 = theme.TextDark,
+            Size = UDim2.new(0, (isMobile and 20 : 18), 0, (isMobile and 20 : 18))
+        })
     end)
     
-    TooltipManager:Attach(button, icon:gsub("^%l", string.upper))
+    TooltipManager:Attach(button, icon:gsub("^%l", string.upper):gsub("-", " "))
     
     return button
 end
 
 function Window:CreateTabContainer()
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
+    local headerHeight = isMobile and 70 : 60
+    local footerHeight = isMobile and 50 : 45
+    local tabWidth = isMobile and 0 : 180
+    
     local tabContainer = Instance.new("ScrollingFrame")
     tabContainer.Name = "TabContainer"
-    tabContainer.BackgroundColor3 = self.Theme.Secondary
+    tabContainer.BackgroundColor3 = theme.Secondary
+    tabContainer.BackgroundTransparency = isMobile and 1 : 0.2
     tabContainer.BorderSizePixel = 0
-    tabContainer.Position = UDim2.new(0, 0, 0, 50)
-    tabContainer.Size = UDim2.new(0, 160, 1, -90)
-    tabContainer.ScrollBarThickness = 4
-    tabContainer.ScrollBarImageColor3 = self.Theme.Accent
+    tabContainer.Position = isMobile and UDim2.new(0, 0, 1, -footerHeight) or UDim2.new(0, 0, 0, headerHeight)
+    tabContainer.Size = isMobile and UDim2.new(1, 0, 0, footerHeight) or UDim2.new(0, tabWidth, 1, -(headerHeight + footerHeight))
+    tabContainer.ScrollBarThickness = isMobile and 0 : 4
+    tabContainer.ScrollBarImageColor3 = theme.Accent
     tabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    tabContainer.AutomaticCanvasSize = isMobile and Enum.AutomaticSize.X or Enum.AutomaticSize.Y
+    tabContainer.ScrollingDirection = isMobile and Enum.ScrollingDirection.X or Enum.ScrollingDirection.Y
     tabContainer.Parent = self.MainFrame
     
+    if not isMobile then
+        local glass = Instance.new("Frame")
+        glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        glass.BackgroundTransparency = 0.96
+        glass.Size = UDim2.new(1, 0, 1, 0)
+        glass.Parent = tabContainer
+    end
+    
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 6)
+    listLayout.Padding = UDim.new(0, isMobile and 8 : 8)
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.FillDirection = isMobile and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical
+    listLayout.HorizontalAlignment = isMobile and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center
     listLayout.Parent = tabContainer
     
-    Utility:AddPadding(tabContainer, 10)
+    Utility:AddPadding(tabContainer, isMobile and 12 : 12)
     
     self.TabContainer = tabContainer
 end
 
 function Window:CreateContentArea()
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
+    local headerHeight = isMobile and 70 : 60
+    local footerHeight = isMobile and 50 : 45
+    local tabWidth = isMobile and 0 : 180
+    
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
-    contentArea.BackgroundColor3 = self.Theme.Background
-    contentArea.BorderSizePixel = 0
-    contentArea.Position = UDim2.new(0, 160, 0, 50)
-    contentArea.Size = UDim2.new(1, -160, 1, -90)
+    contentArea.BackgroundTransparency = 1
+    contentArea.Position = isMobile and UDim2.new(0, 0, 0, headerHeight) or UDim2.new(0, tabWidth, 0, headerHeight)
+    contentArea.Size = isMobile and UDim2.new(1, 0, 1, -(headerHeight + footerHeight + (isMobile and footerHeight : 0))) or UDim2.new(1, -tabWidth, 1, -(headerHeight + footerHeight))
     contentArea.ClipsDescendants = true
     contentArea.Parent = self.MainFrame
     
@@ -1043,85 +1453,125 @@ function Window:CreateContentArea()
 end
 
 function Window:CreateFooter()
+    local theme = self.Theme
+    local isMobile = self.IsMobile
+    
+    local footerHeight = isMobile and 50 : 45
+    
     local footer = Instance.new("Frame")
     footer.Name = "Footer"
-    footer.BackgroundColor3 = self.Theme.Secondary
+    footer.BackgroundColor3 = theme.Secondary
+    footer.BackgroundTransparency = 0.1
     footer.BorderSizePixel = 0
-    footer.Position = UDim2.new(0, 0, 1, -40)
-    footer.Size = UDim2.new(1, 0, 0, 40)
+    footer.Position = UDim2.new(0, 0, 1, -footerHeight)
+    footer.Size = UDim2.new(1, 0, 0, footerHeight)
     footer.Parent = self.MainFrame
     
-    Utility:ApplyCorner(footer, 12)
+    if not isMobile then
+        Utility:ApplyCorner(footer, 16)
+        
+        local cornerFix = Instance.new("Frame")
+        cornerFix.BackgroundColor3 = theme.Secondary
+        cornerFix.BackgroundTransparency = 0.1
+        cornerFix.BorderSizePixel = 0
+        cornerFix.Size = UDim2.new(1, 0, 0, 15)
+        cornerFix.Parent = footer
+    end
     
-    -- Fix corner (solo abajo)
-    local cornerFix = Instance.new("Frame")
-    cornerFix.BackgroundColor3 = self.Theme.Secondary
-    cornerFix.BorderSizePixel = 0
-    cornerFix.Position = UDim2.new(0, 0, 0, 0)
-    cornerFix.Size = UDim2.new(1, 0, 0, 12)
-    cornerFix.Parent = footer
+    -- Glass effect
+    local footerGlass = Instance.new("Frame")
+    footerGlass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    footerGlass.BackgroundTransparency = 0.96
+    footerGlass.Size = UDim2.new(1, 0, 1, 0)
+    footerGlass.Parent = footer
     
-    -- Accent line top
+    if not isMobile then
+        Utility:ApplyCorner(footerGlass, 16)
+    end
+    
+    -- Accent line
     local accentLine = Instance.new("Frame")
-    accentLine.BackgroundColor3 = self.Theme.Accent
+    accentLine.BackgroundColor3 = theme.Accent
     accentLine.BorderSizePixel = 0
     accentLine.Size = UDim2.new(1, 0, 0, 2)
     accentLine.Parent = footer
     
-    -- Footer text
+    Utility:ApplyGradient(accentLine, theme.AccentGradient, 90)
+    
+    -- Footer content
     local footerText = Instance.new("TextLabel")
     footerText.BackgroundTransparency = 1
-    footerText.Position = UDim2.new(0, 15, 0.5, 0)
-    footerText.Size = UDim2.new(0.5, -15, 0, 20)
+    footerText.Position = UDim2.new(0, isMobile and 15 : 18, 0.5, 0)
+    footerText.Size = UDim2.new(0.5, 0, 0, isMobile and 18 : 16)
     footerText.AnchorPoint = Vector2.new(0, 0.5)
-    footerText.Font = Enum.Font.GothamBold
+    footerText.Font = Enum.Font.GothamBlack
     footerText.Text = "NebulaX v" .. NebulaX.Version
-    footerText.TextColor3 = self.Theme.Accent
-    footerText.TextSize = 11
+    footerText.TextColor3 = theme.Accent
+    footerText.TextSize = isMobile and 12 : 11
     footerText.TextXAlignment = Enum.TextXAlignment.Left
     footerText.Parent = footer
     
-    -- User info
     local userInfo = Instance.new("TextLabel")
     userInfo.BackgroundTransparency = 1
-    userInfo.Position = UDim2.new(1, -15, 0.5, 0)
-    userInfo.Size = UDim2.new(0.5, -15, 0, 20)
+    userInfo.Position = UDim2.new(1, -(isMobile and 15 : 18), 0.5, 0)
+    userInfo.Size = UDim2.new(0.5, 0, 0, isMobile and 18 : 16)
     userInfo.AnchorPoint = Vector2.new(1, 0.5)
-    userInfo.Font = Enum.Font.Gotham
-    userInfo.Text = Player.Name .. " | " .. Utility:GetPlatform()
-    userInfo.TextColor3 = self.Theme.TextDark
-    userInfo.TextSize = 10
+    userInfo.Font = Enum.Font.GothamMedium
+    userInfo.Text = (isMobile and "" or Player.Name .. " | ") .. Utility:GetPlatform()
+    userInfo.TextColor3 = theme.TextDark
+    userInfo.TextSize = isMobile and 11 : 10
     userInfo.TextXAlignment = Enum.TextXAlignment.Right
+    userInfo.TextTruncate = Enum.TextTruncate.AtEnd
     userInfo.Parent = footer
     
     self.Footer = footer
 end
 
 function Window:CreateWatermark()
-    local watermark = Instance.new("TextLabel")
+    local theme = self.Theme
+    local isMobile = Utility:IsMobile()
+    
+    local watermark = Instance.new("Frame")
     watermark.Name = "Watermark"
-    watermark.BackgroundColor3 = self.Theme.Secondary
+    watermark.BackgroundColor3 = theme.Secondary
+    watermark.BackgroundTransparency = 0.1
     watermark.BorderSizePixel = 0
-    watermark.Position = UDim2.new(0, 10, 0, 10)
-    watermark.Size = UDim2.new(0, 200, 0, 30)
-    watermark.Font = Enum.Font.GothamBold
-    watermark.Text = "  " .. (self.Watermark or "NebulaX UI")
-    watermark.TextColor3 = self.Theme.Text
-    watermark.TextSize = 12
-    watermark.TextXAlignment = Enum.TextXAlignment.Left
+    watermark.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 15 : 12)
+    watermark.Size = UDim2.new(0, isMobile and 220 : 200, 0, isMobile and 40 : 36)
     watermark.Parent = self.ScreenGui
     
-    Utility:ApplyCorner(watermark, 6)
-    Utility:ApplyStroke(watermark, self.Theme.Accent, 1, 0.5)
+    Utility:ApplyCorner(watermark, isMobile and 12 : 10)
+    Utility:CreateShadow(watermark, 0.6)
+    Utility:CreateGlow(watermark, theme.Accent, 0.15)
+    
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = watermark
+    
+    Utility:ApplyCorner(glass, isMobile and 12 : 10)
     
     local icon = Instance.new("ImageLabel")
     icon.BackgroundTransparency = 1
     icon.Image = IconLibrary:Get("activity")
-    icon.ImageColor3 = self.Theme.Accent
-    icon.Position = UDim2.new(0, 8, 0.5, 0)
-    icon.Size = UDim2.new(0, 16, 0, 16)
+    icon.ImageColor3 = theme.Accent
+    icon.Position = UDim2.new(0, isMobile and 12 : 10, 0.5, 0)
+    icon.Size = UDim2.new(0, isMobile and 22 : 20, 0, isMobile and 22 : 20)
     icon.AnchorPoint = Vector2.new(0, 0.5)
     icon.Parent = watermark
+    
+    local text = Instance.new("TextLabel")
+    text.BackgroundTransparency = 1
+    text.Position = UDim2.new(0, isMobile and 42 : 38, 0.5, 0)
+    text.Size = UDim2.new(1, -(isMobile and 50 : 46), 0, isMobile and 18 : 16)
+    text.AnchorPoint = Vector2.new(0, 0.5)
+    text.Font = Enum.Font.GothamBold
+    text.Text = self.Watermark or "NebulaX"
+    text.TextColor3 = theme.Text
+    text.TextSize = isMobile and 13 : 12
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.Parent = watermark
     
     -- FPS Counter
     local fps = 0
@@ -1130,18 +1580,27 @@ function Window:CreateWatermark()
     RunService.RenderStepped:Connect(function()
         fps = fps + 1
         if tick() - lastUpdate >= 1 then
-            watermark.Text = string.format("     %s | %d FPS", self.Watermark or "NebulaX", fps)
+            text.Text = string.format("%s | %d FPS", self.Watermark or "NebulaX", fps)
             fps = 0
             lastUpdate = tick()
         end
     end)
 end
 
+-- Continuará con los métodos de Tab, Section y Elementos...
+-- (Por límite de caracteres, incluiré la parte 2 en el siguiente mensaje)
+-- ═══════════════════════════════════════════════════════════
+-- WINDOW METHODS - CONTINUED
+-- ═══════════════════════════════════════════════════════════
+
 function Window:CreateTab(options)
     options = options or {}
     local tabName = options.Name or "Tab"
     local tabIcon = options.Icon or "file"
     local orderIndex = options.Order or (#self.Tabs + 1)
+    
+    local theme = self.Theme
+    local isMobile = self.IsMobile
     
     local tab = {
         Name = tabName,
@@ -1155,122 +1614,177 @@ function Window:CreateTab(options)
     -- Tab Button
     local tabButton = Instance.new("TextButton")
     tabButton.Name = tabName .. "Button"
-    tabButton.BackgroundColor3 = self.Theme.Tertiary
+    tabButton.BackgroundColor3 = theme.Tertiary
+    tabButton.BackgroundTransparency = 0.3
     tabButton.BorderSizePixel = 0
-    tabButton.Size = UDim2.new(1, 0, 0, 40)
+    tabButton.Size = isMobile and UDim2.new(0, 100, 1, -24) or UDim2.new(1, -24, 0, 50)
     tabButton.AutoButtonColor = false
     tabButton.Text = ""
     tabButton.LayoutOrder = orderIndex
     tabButton.Parent = self.TabContainer
     
-    Utility:ApplyCorner(tabButton, 8)
+    Utility:ApplyCorner(tabButton, isMobile and 12 : 10)
     
-    -- Tab Icon
+    -- Icon Container
+    local iconContainer = Instance.new("Frame")
+    iconContainer.Name = "IconContainer"
+    iconContainer.BackgroundColor3 = theme.Accent
+    iconContainer.BackgroundTransparency = 0.9
+    iconContainer.Position = isMobile and UDim2.new(0.5, 0, 0, 10) or UDim2.new(0, 12, 0, 10)
+    iconContainer.Size = UDim2.new(0, isMobile and 32 : 28, 0, isMobile and 32 : 28)
+    iconContainer.AnchorPoint = isMobile and Vector2.new(0.5, 0) or Vector2.new(0, 0)
+    iconContainer.Parent = tabButton
+    
+    Utility:ApplyCorner(iconContainer, isMobile and 8 : 7)
+    
     local iconImage = Instance.new("ImageLabel")
     iconImage.Name = "Icon"
     iconImage.BackgroundTransparency = 1
     iconImage.Image = IconLibrary:Get(tabIcon)
-    iconImage.ImageColor3 = self.Theme.TextDark
-    iconImage.Position = UDim2.new(0, 12, 0.5, 0)
-    iconImage.Size = UDim2.new(0, 20, 0, 20)
-    iconImage.AnchorPoint = Vector2.new(0, 0.5)
-    iconImage.Parent = tabButton
+    iconImage.ImageColor3 = theme.TextDark
+    iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    iconImage.Size = UDim2.new(0, isMobile and 18 : 16, 0, isMobile and 18 : 16)
+    iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    iconImage.Parent = iconContainer
     
     -- Tab Label
     local tabLabel = Instance.new("TextLabel")
     tabLabel.Name = "Label"
     tabLabel.BackgroundTransparency = 1
-    tabLabel.Position = UDim2.new(0, 40, 0, 0)
-    tabLabel.Size = UDim2.new(1, -40, 1, 0)
+    tabLabel.Position = isMobile and UDim2.new(0, 0, 1, -18) or UDim2.new(0, 48, 0, 0)
+    tabLabel.Size = isMobile and UDim2.new(1, 0, 0, 16) or UDim2.new(1, -48, 1, 0)
     tabLabel.Font = Enum.Font.GothamBold
     tabLabel.Text = tabName
-    tabLabel.TextColor3 = self.Theme.TextDark
-    tabLabel.TextSize = 13
-    tabLabel.TextXAlignment = Enum.TextXAlignment.Left
+    tabLabel.TextColor3 = theme.TextDark
+    tabLabel.TextSize = isMobile and 11 : 13
+    tabLabel.TextXAlignment = isMobile and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+    tabLabel.TextYAlignment = isMobile and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center
+    tabLabel.TextTruncate = Enum.TextTruncate.AtEnd
     tabLabel.Parent = tabButton
+    
+    -- Active Indicator
+    local activeIndicator = Instance.new("Frame")
+    activeIndicator.Name = "ActiveIndicator"
+    activeIndicator.BackgroundColor3 = theme.Accent
+    activeIndicator.BorderSizePixel = 0
+    activeIndicator.Position = isMobile and UDim2.new(0, 0, 1, 0) or UDim2.new(0, 0, 0, 0)
+    activeIndicator.Size = isMobile and UDim2.new(1, 0, 0, 3) or UDim2.new(0, 3, 1, 0)
+    activeIndicator.Visible = false
+    activeIndicator.Parent = tabButton
+    
+    if isMobile then
+        Utility:ApplyCorner(activeIndicator, 2)
+    end
+    
+    Utility:ApplyGradient(activeIndicator, theme.AccentGradient, isMobile and 90 : 0)
     
     -- Tab Content Container
     local tabContent = Instance.new("ScrollingFrame")
     tabContent.Name = tabName .. "Content"
     tabContent.BackgroundTransparency = 1
     tabContent.Size = UDim2.new(1, 0, 1, 0)
-    tabContent.ScrollBarThickness = 4
-    tabContent.ScrollBarImageColor3 = self.Theme.Accent
+    tabContent.ScrollBarThickness = isMobile and 0 : 4
+    tabContent.ScrollBarImageColor3 = theme.Accent
     tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
     tabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
     tabContent.Visible = false
     tabContent.Parent = self.ContentArea
     
     local contentLayout = Instance.new("UIListLayout")
-    contentLayout.Padding = UDim.new(0, 12)
+    contentLayout.Padding = UDim.new(0, isMobile and 16 : 14)
     contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
     contentLayout.Parent = tabContent
     
-    Utility:AddPadding(tabContent, 15)
+    Utility:AddPadding(tabContent, isMobile and 18 : 16)
     
     tab.Button = tabButton
     tab.Content = tabContent
     tab.IconImage = iconImage
+    tab.IconContainer = iconContainer
     tab.Label = tabLabel
+    tab.ActiveIndicator = activeIndicator
     
     -- Tab selection
     tabButton.MouseButton1Click:Connect(function()
         self:SelectTab(tab)
-        Utility:CreateRipple(tabButton, tabButton.AbsoluteSize.X/2, tabButton.AbsoluteSize.Y/2, self.Theme.Accent)
+        Utility:CreateRipple(tabButton, tabButton.AbsoluteSize.X/2, tabButton.AbsoluteSize.Y/2, theme.Accent)
     end)
     
     tabButton.MouseEnter:Connect(function()
         if not tab.Visible then
-            Utility:Tween(tabButton, {BackgroundColor3 = self.Theme.Secondary}, 0.2)
+            Utility:Spring(tabButton, {BackgroundTransparency = 0.1})
+            Utility:Spring(iconContainer, {BackgroundTransparency = 0.85})
+            Utility:Spring(iconImage, {
+                ImageColor3 = theme.Text,
+                Size = UDim2.new(0, (isMobile and 20 : 18), 0, (isMobile and 20 : 18))
+            })
         end
     end)
     
     tabButton.MouseLeave:Connect(function()
         if not tab.Visible then
-            Utility:Tween(tabButton, {BackgroundColor3 = self.Theme.Tertiary}, 0.2)
+            Utility:Spring(tabButton, {BackgroundTransparency = 0.3})
+            Utility:Spring(iconContainer, {BackgroundTransparency = 0.9})
+            Utility:Spring(iconImage, {
+                ImageColor3 = theme.TextDark,
+                Size = UDim2.new(0, (isMobile and 18 : 16), 0, (isMobile and 18 : 16))
+            })
         end
     end)
     
     table.insert(self.Tabs, tab)
     
-    -- Select first tab
     if #self.Tabs == 1 then
-        self:SelectTab(tab)
+        task.delay(0.1, function()
+            self:SelectTab(tab)
+        end)
     end
     
-    -- Return tab object con métodos
     return setmetatable(tab, {__index = TabMethods})
 end
 
 function Window:SelectTab(tab)
+    local theme = self.Theme
+    
     for _, t in pairs(self.Tabs) do
         t.Visible = false
         t.Content.Visible = false
-        Utility:Tween(t.Button, {BackgroundColor3 = self.Theme.Tertiary}, 0.2)
-        Utility:Tween(t.IconImage, {ImageColor3 = self.Theme.TextDark}, 0.2)
-        Utility:Tween(t.Label, {TextColor3 = self.Theme.TextDark}, 0.2)
+        t.ActiveIndicator.Visible = false
+        
+        Utility:Spring(t.Button, {BackgroundTransparency = 0.3})
+        Utility:Spring(t.IconContainer, {BackgroundTransparency = 0.9})
+        Utility:Spring(t.IconImage, {ImageColor3 = theme.TextDark})
+        Utility:Spring(t.Label, {TextColor3 = theme.TextDark})
     end
     
     tab.Visible = true
     tab.Content.Visible = true
+    tab.ActiveIndicator.Visible = true
     self.CurrentTab = tab
     
-    Utility:Tween(tab.Button, {BackgroundColor3 = self.Theme.Accent}, 0.2)
-    Utility:Tween(tab.IconImage, {ImageColor3 = self.Theme.Text}, 0.2)
-    Utility:Tween(tab.Label, {TextColor3 = self.Theme.Text}, 0.2)
+    Utility:Spring(tab.Button, {BackgroundTransparency = 0.05})
+    Utility:Spring(tab.IconContainer, {BackgroundTransparency = 0.1})
+    Utility:Spring(tab.IconImage, {ImageColor3 = theme.Accent})
+    Utility:Spring(tab.Label, {TextColor3 = theme.Text})
+    
+    -- Glow effect on icon
+    Utility:CreateGlow(tab.IconContainer, theme.Accent, 0.3)
 end
 
 function Window:Minimize()
     self.Minimized = not self.Minimized
     
+    local theme = self.Theme
+    local headerHeight = self.IsMobile and 70 : 60
+    
     if self.Minimized then
-        Utility:Tween(self.MainFrame, {
-            Size = UDim2.new(self.Size.X.Scale, self.Size.X.Offset, 0, 50)
-        }, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        Utility:Spring(self.MainFrame, {
+            Size = UDim2.new(self.Size.X.Scale, self.Size.X.Offset, 0, headerHeight)
+        })
     else
-        Utility:Tween(self.MainFrame, {
+        Utility:Spring(self.MainFrame, {
             Size = self.Size
-        }, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        })
     end
 end
 
@@ -1279,10 +1793,12 @@ function Window:Toggle()
     
     if self.Visible then
         self.MainFrame.Visible = true
-        Utility:Tween(self.MainFrame, {
+        self.MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        
+        Utility:Spring(self.MainFrame, {
             Size = self.Size,
-            BackgroundTransparency = 0
-        }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            BackgroundTransparency = 0.05
+        })
     else
         Utility:Tween(self.MainFrame, {
             Size = UDim2.new(0, 0, 0, 0),
@@ -1297,18 +1813,18 @@ function Window:Destroy()
     Utility:Tween(self.MainFrame, {
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1
-    }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In, function()
+    }, 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In, function()
+        self:SaveConfiguration()
         self.ScreenGui:Destroy()
     end)
-    
-    self:SaveConfiguration()
 end
 
 function Window:OpenSettings()
-    NotificationManager:Create({
+    NebulaX:Notify({
         Title = "Settings",
         Description = "Settings panel coming soon!",
         Type = "Info",
+        Icon = "settings",
         Duration = 3
     })
 end
@@ -1335,15 +1851,15 @@ function Window:LoadConfiguration()
     local config = Utility:LoadConfig(self.ConfigName)
     if not config then return end
     
-    task.wait(0.5) -- Wait for UI to load
-    
     for tabName, elements in pairs(config) do
         for _, tab in pairs(self.Tabs) do
             if tab.Name == tabName then
                 for elementName, value in pairs(elements) do
                     local element = tab.Elements[elementName]
                     if element and element.Set then
-                        element:Set(value)
+                        pcall(function()
+                            element:Set(value)
+                        end)
                     end
                 end
             end
@@ -1358,6 +1874,9 @@ end
 TabMethods = {}
 
 function TabMethods:CreateSection(name)
+    local theme = self.Window.Theme
+    local isMobile = self.Window.IsMobile
+    
     local section = {
         Name = name,
         Tab = self,
@@ -1373,33 +1892,47 @@ function TabMethods:CreateSection(name)
     sectionFrame.Parent = self.Content
     
     local sectionLayout = Instance.new("UIListLayout")
-    sectionLayout.Padding = UDim.new(0, 8)
+    sectionLayout.Padding = UDim.new(0, isMobile and 12 : 10)
     sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
     sectionLayout.Parent = sectionFrame
     
     -- Section Header
+    local headerContainer = Instance.new("Frame")
+    headerContainer.Name = "HeaderContainer"
+    headerContainer.BackgroundTransparency = 1
+    headerContainer.Size = UDim2.new(1, 0, 0, isMobile and 32 : 28)
+    headerContainer.LayoutOrder = 0
+    headerContainer.Parent = sectionFrame
+    
     local header = Instance.new("TextLabel")
     header.Name = "Header"
     header.BackgroundTransparency = 1
-    header.Size = UDim2.new(1, 0, 0, 25)
-    header.Font = Enum.Font.GothamBold
+    header.Size = UDim2.new(1, -50, 1, 0)
+    header.Font = Enum.Font.GothamBlack
     header.Text = name
-    header.TextColor3 = self.Window.Theme.Text
-    header.TextSize = 14
+    header.TextColor3 = theme.Text
+    header.TextSize = isMobile and 16 : 15
     header.TextXAlignment = Enum.TextXAlignment.Left
-    header.LayoutOrder = 0
-    header.Parent = sectionFrame
+    header.Parent = headerContainer
     
-    -- Divider
-    local divider = Instance.new("Frame")
-    divider.Name = "Divider"
-    divider.BackgroundColor3 = self.Window.Theme.Accent
-    divider.BorderSizePixel = 0
-    divider.Size = UDim2.new(0, 40, 0, 2)
-    divider.Position = UDim2.new(0, 0, 1, -2)
-    divider.Parent = header
+    -- Gradient text effect
+    Utility:ApplyGradient(header, ColorSequence.new{
+        ColorSequenceKeypoint.new(0, theme.Text),
+        ColorSequenceKeypoint.new(1, theme.Accent)
+    }, 90)
     
-    Utility:ApplyCorner(divider, 2)
+    -- Decorative line
+    local decorLine = Instance.new("Frame")
+    decorLine.Name = "DecorLine"
+    decorLine.BackgroundColor3 = theme.Accent
+    decorLine.BorderSizePixel = 0
+    decorLine.Position = UDim2.new(1, -40, 0.5, 0)
+    decorLine.Size = UDim2.new(0, 40, 0, 2)
+    decorLine.AnchorPoint = Vector2.new(1, 0.5)
+    decorLine.Parent = headerContainer
+    
+    Utility:ApplyCorner(decorLine, 1)
+    Utility:ApplyGradient(decorLine, theme.AccentGradient, 90)
     
     section.Frame = sectionFrame
     table.insert(self.Sections, section)
@@ -1407,6 +1940,7 @@ function TabMethods:CreateSection(name)
     return setmetatable(section, {__index = SectionMethods})
 end
 
+-- Quick methods
 function TabMethods:CreateLabel(options)
     return self:CreateSection(""):CreateLabel(options)
 end
@@ -1440,7 +1974,7 @@ function TabMethods:CreateKeybind(options)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- SECTION METHODS / UI ELEMENTS
+-- SECTION METHODS - UI ELEMENTS
 -- ═══════════════════════════════════════════════════════════
 
 SectionMethods = {}
@@ -1450,6 +1984,7 @@ function SectionMethods:CreateLabel(options)
     options = options or {}
     local text = options.Text or "Label"
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
     
     local labelFrame = Instance.new("Frame")
     labelFrame.Name = "Label"
@@ -1463,13 +1998,14 @@ function SectionMethods:CreateLabel(options)
     label.BackgroundTransparency = 1
     label.Size = UDim2.new(1, 0, 0, 0)
     label.AutomaticSize = Enum.AutomaticSize.Y
-    label.Font = Enum.Font.Gotham
+    label.Font = Enum.Font.GothamMedium
     label.Text = text
     label.TextColor3 = theme.TextDark
-    label.TextSize = 13
+    label.TextSize = isMobile and 14 : 13
     label.TextWrapped = true
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextYAlignment = Enum.TextYAlignment.Top
+    label.RichText = true
     label.Parent = labelFrame
     
     local element = {
@@ -1488,56 +2024,115 @@ end
 function SectionMethods:CreateButton(options)
     options = options or {}
     local name = options.Name or "Button"
+    local description = options.Description or ""
     local callback = options.Callback or function() end
     local icon = options.Icon
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
+    
+    local buttonHeight = description ~= "" and (isMobile and 70 : 60) or (isMobile and 50 : 45)
     
     local buttonFrame = Instance.new("TextButton")
     buttonFrame.Name = "Button"
     buttonFrame.BackgroundColor3 = theme.Secondary
+    buttonFrame.BackgroundTransparency = 0.2
     buttonFrame.BorderSizePixel = 0
-    buttonFrame.Size = UDim2.new(1, 0, 0, 40)
+    buttonFrame.Size = UDim2.new(1, 0, 0, buttonHeight)
     buttonFrame.AutoButtonColor = false
     buttonFrame.Text = ""
     buttonFrame.LayoutOrder = #self.Elements + 1
     buttonFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(buttonFrame, 8)
-    Utility:ApplyStroke(buttonFrame, theme.Border, 1, 0.7)
+    Utility:ApplyCorner(buttonFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(buttonFrame, 0.8)
     
+    -- Glass overlay
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = buttonFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
+    
+    -- Border
+    local border = Utility:ApplyStroke(buttonFrame, theme.Border, 1, 0.7)
+    
+    -- Icon
     if icon then
+        local iconBG = Instance.new("Frame")
+        iconBG.BackgroundColor3 = theme.Accent
+        iconBG.BackgroundTransparency = 0.9
+        iconBG.Position = UDim2.new(0, isMobile and 15 : 12, 0.5, 0)
+        iconBG.Size = UDim2.new(0, isMobile and 40 : 36, 0, isMobile and 40 : 36)
+        iconBG.AnchorPoint = Vector2.new(0, 0.5)
+        iconBG.Parent = buttonFrame
+        
+        Utility:ApplyCorner(iconBG, isMobile and 10 : 9)
+        
         local iconImage = Instance.new("ImageLabel")
         iconImage.BackgroundTransparency = 1
         iconImage.Image = IconLibrary:Get(icon)
         iconImage.ImageColor3 = theme.Accent
-        iconImage.Position = UDim2.new(0, 12, 0.5, 0)
-        iconImage.Size = UDim2.new(0, 20, 0, 20)
-        iconImage.AnchorPoint = Vector2.new(0, 0.5)
-        iconImage.Parent = buttonFrame
+        iconImage.Size = UDim2.new(0, isMobile and 22 : 20, 0, isMobile and 22 : 20)
+        iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+        iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+        iconImage.Parent = iconBG
     end
+    
+    local textContainer = Instance.new("Frame")
+    textContainer.BackgroundTransparency = 1
+    textContainer.Position = UDim2.new(0, icon and (isMobile and 65 : 58) or (isMobile and 15 : 12), 0, isMobile and 12 : 10)
+    textContainer.Size = UDim2.new(1, -(icon and (isMobile and 80 : 70) or (isMobile and 30 : 24)), 1, -(isMobile and 24 : 20))
+    textContainer.Parent = buttonFrame
     
     local buttonLabel = Instance.new("TextLabel")
     buttonLabel.BackgroundTransparency = 1
-    buttonLabel.Position = UDim2.new(0, icon and 42 or 12, 0, 0)
-    buttonLabel.Size = UDim2.new(1, -(icon and 42 or 12), 1, 0)
+    buttonLabel.Size = UDim2.new(1, 0, 0, isMobile and 20 : 18)
     buttonLabel.Font = Enum.Font.GothamBold
     buttonLabel.Text = name
     buttonLabel.TextColor3 = theme.Text
-    buttonLabel.TextSize = 13
+    buttonLabel.TextSize = isMobile and 15 : 14
     buttonLabel.TextXAlignment = Enum.TextXAlignment.Left
-    buttonLabel.Parent = buttonFrame
+    buttonLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    buttonLabel.Parent = textContainer
     
+    if description ~= "" then
+        local descLabel = Instance.new("TextLabel")
+        descLabel.BackgroundTransparency = 1
+        descLabel.Position = UDim2.new(0, 0, 0, isMobile and 22 : 20)
+        descLabel.Size = UDim2.new(1, 0, 1, -(isMobile and 22 : 20))
+        descLabel.Font = Enum.Font.Gotham
+        descLabel.Text = description
+        descLabel.TextColor3 = theme.TextDark
+        descLabel.TextSize = isMobile and 12 : 11
+        descLabel.TextXAlignment = Enum.TextXAlignment.Left
+        descLabel.TextYAlignment = Enum.TextYAlignment.Top
+        descLabel.TextWrapped = true
+        descLabel.Parent = textContainer
+    end
+    
+    -- Click animation
     buttonFrame.MouseButton1Click:Connect(function()
         Utility:CreateRipple(buttonFrame, buttonFrame.AbsoluteSize.X/2, buttonFrame.AbsoluteSize.Y/2, theme.Accent)
+        
+        -- Bounce animation
+        Utility:Tween(buttonFrame, {Size = UDim2.new(1, -4, 0, buttonHeight - 2)}, 0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, function()
+            Utility:Spring(buttonFrame, {Size = UDim2.new(1, 0, 0, buttonHeight)})
+        end)
+        
         callback()
     end)
     
     buttonFrame.MouseEnter:Connect(function()
-        Utility:Tween(buttonFrame, {BackgroundColor3 = theme.Tertiary}, 0.2)
+        Utility:Spring(buttonFrame, {BackgroundTransparency = 0.05})
+        Utility:Spring(border, {Transparency = 0.3})
+        Utility:CreateGlow(buttonFrame, theme.Accent, 0.2)
     end)
     
     buttonFrame.MouseLeave:Connect(function()
-        Utility:Tween(buttonFrame, {BackgroundColor3 = theme.Secondary}, 0.2)
+        Utility:Spring(buttonFrame, {BackgroundTransparency = 0.2})
+        Utility:Spring(border, {Transparency = 0.7})
     end)
     
     local element = {
@@ -1551,91 +2146,179 @@ function SectionMethods:CreateButton(options)
     return element
 end
 
--- ═════════════════ TOGGLE ═════════════════
+-- ═════════════════ TOGGLE (ENHANCED) ═════════════════
 function SectionMethods:CreateToggle(options)
     options = options or {}
     local name = options.Name or "Toggle"
     local default = options.Default or false
+    local description = options.Description or ""
     local callback = options.Callback or function() end
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
+    
+    local toggleHeight = description ~= "" and (isMobile and 65 : 55) or (isMobile and 50 : 45)
     
     local toggleFrame = Instance.new("Frame")
     toggleFrame.Name = "Toggle"
     toggleFrame.BackgroundColor3 = theme.Secondary
+    toggleFrame.BackgroundTransparency = 0.2
     toggleFrame.BorderSizePixel = 0
-    toggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    toggleFrame.Size = UDim2.new(1, 0, 0, toggleHeight)
     toggleFrame.LayoutOrder = #self.Elements + 1
     toggleFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(toggleFrame, 8)
+    Utility:ApplyCorner(toggleFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(toggleFrame, 0.8)
     Utility:ApplyStroke(toggleFrame, theme.Border, 1, 0.7)
+    
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = toggleFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
+    
+    -- Text container
+    local textContainer = Instance.new("Frame")
+    textContainer.BackgroundTransparency = 1
+    textContainer.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 12 : 10)
+    textContainer.Size = UDim2.new(1, -(isMobile and 85 : 75), 1, -(isMobile and 24 : 20))
+    textContainer.Parent = toggleFrame
     
     local toggleLabel = Instance.new("TextLabel")
     toggleLabel.BackgroundTransparency = 1
-    toggleLabel.Position = UDim2.new(0, 12, 0, 0)
-    toggleLabel.Size = UDim2.new(1, -70, 1, 0)
+    toggleLabel.Size = UDim2.new(1, 0, 0, isMobile and 18 : 16)
     toggleLabel.Font = Enum.Font.GothamBold
     toggleLabel.Text = name
     toggleLabel.TextColor3 = theme.Text
-    toggleLabel.TextSize = 13
+    toggleLabel.TextSize = isMobile and 14 : 13
     toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    toggleLabel.Parent = toggleFrame
+    toggleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    toggleLabel.Parent = textContainer
     
-    -- Toggle Switch
+    if description ~= "" then
+        local descLabel = Instance.new("TextLabel")
+        descLabel.BackgroundTransparency = 1
+        descLabel.Position = UDim2.new(0, 0, 0, isMobile and 20 : 18)
+        descLabel.Size = UDim2.new(1, 0, 1, -(isMobile and 20 : 18))
+        descLabel.Font = Enum.Font.Gotham
+        descLabel.Text = description
+        descLabel.TextColor3 = theme.TextDark
+        descLabel.TextSize = isMobile and 11 : 10
+        descLabel.TextXAlignment = Enum.TextXAlignment.Left
+        descLabel.TextYAlignment = Enum.TextYAlignment.Top
+        descLabel.TextWrapped = true
+        descLabel.Parent = textContainer
+    end
+    
+    -- Toggle Switch (Modern Design)
     local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.BackgroundColor3 = default and theme.Accent or theme.Tertiary
+    toggleButton.BackgroundTransparency = 0.1
     toggleButton.BorderSizePixel = 0
-    toggleButton.Position = UDim2.new(1, -52, 0.5, 0)
-    toggleButton.Size = UDim2.new(0, 44, 0, 24)
+    toggleButton.Position = UDim2.new(1, -(isMobile and 62 : 56), 0.5, 0)
+    toggleButton.Size = UDim2.new(0, isMobile and 54 : 48, 0, isMobile and 30 : 26)
     toggleButton.AnchorPoint = Vector2.new(0, 0.5)
     toggleButton.AutoButtonColor = false
     toggleButton.Text = ""
     toggleButton.Parent = toggleFrame
     
-    Utility:ApplyCorner(toggleButton, 12)
+    Utility:ApplyCorner(toggleButton, isMobile and 15 : 13)
+    
+    -- Glow when active
+    if default then
+        Utility:CreateGlow(toggleButton, theme.Accent, 0.3)
+    end
     
     local toggleCircle = Instance.new("Frame")
     toggleCircle.Name = "Circle"
     toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     toggleCircle.BorderSizePixel = 0
-    toggleCircle.Position = default and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-    toggleCircle.Size = UDim2.new(0, 20, 0, 20)
+    toggleCircle.Position = default and UDim2.new(1, -(isMobile and 26 : 23), 0.5, 0) or UDim2.new(0, isMobile and 3 : 3, 0.5, 0)
+    toggleCircle.Size = UDim2.new(0, isMobile and 24 : 20, 0, isMobile and 24 : 20)
     toggleCircle.AnchorPoint = Vector2.new(0, 0.5)
     toggleCircle.Parent = toggleButton
     
-    Utility:ApplyCorner(toggleCircle, 10)
+    Utility:ApplyCorner(toggleCircle, isMobile and 12 : 10)
+    Utility:CreateShadow(toggleCircle, 0.5)
+    
+    -- Check icon
+    local checkIcon = Instance.new("ImageLabel")
+    checkIcon.Name = "CheckIcon"
+    checkIcon.BackgroundTransparency = 1
+    checkIcon.Image = IconLibrary:Get("check")
+    checkIcon.ImageColor3 = theme.Accent
+    checkIcon.ImageTransparency = default and 0 or 1
+    checkIcon.Size = UDim2.new(0, isMobile and 14 : 12, 0, isMobile and 14 : 12)
+    checkIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    checkIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    checkIcon.Parent = toggleCircle
     
     local toggled = default
     
-    local function updateToggle(value)
+    local function updateToggle(value, skipCallback)
         toggled = value
         
-        Utility:Tween(toggleButton, {
-            BackgroundColor3 = toggled and theme.Accent or theme.Tertiary
-        }, 0.2)
+        -- Background color
+        Utility:Spring(toggleButton, {
+            BackgroundColor3 = toggled and theme.Accent or theme.Tertiary,
+            BackgroundTransparency = 0.1
+        })
         
-        Utility:Tween(toggleCircle, {
-            Position = toggled and UDim2.new(1, -22, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-        }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        -- Circle position
+        Utility:Spring(toggleCircle, {
+            Position = toggled and UDim2.new(1, -(isMobile and 26 : 23), 0.5, 0) or UDim2.new(0, isMobile and 3 : 3, 0.5, 0)
+        })
         
-        callback(toggled)
+        -- Check icon
+        Utility:Spring(checkIcon, {
+            ImageTransparency = toggled and 0 or 1,
+            Rotation = toggled and 360 or 0
+        })
+        
+        -- Glow effect
+        if toggled then
+            Utility:CreateGlow(toggleButton, theme.Accent, 0.3)
+        end
+        
+        if not skipCallback then
+            callback(toggled)
+        end
     end
     
     toggleButton.MouseButton1Click:Connect(function()
         updateToggle(not toggled)
+        Utility:CreateRipple(toggleButton, toggleButton.AbsoluteSize.X/2, toggleButton.AbsoluteSize.Y/2, theme.Accent)
     end)
     
     toggleFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
             updateToggle(not toggled)
         end
+    end)
+    
+    toggleButton.MouseEnter:Connect(function()
+        Utility:Spring(toggleCircle, {
+            Size = UDim2.new(0, (isMobile and 26 : 22), 0, (isMobile and 26 : 22))
+        })
+    end)
+    
+    toggleButton.MouseLeave:Connect(function()
+        Utility:Spring(toggleCircle, {
+            Size = UDim2.new(0, (isMobile and 24 : 20), 0, (isMobile and 24 : 20))
+        })
     end)
     
     local element = {
         Frame = toggleFrame,
         Value = toggled,
-        Set = updateToggle,
+        Set = function(self, value)
+            updateToggle(value, true)
+        end,
         Callback = callback
     }
     
@@ -1643,13 +2326,15 @@ function SectionMethods:CreateToggle(options)
     self.Tab.Elements[name] = element
     
     if default then
-        callback(default)
+        task.defer(function()
+            callback(default)
+        end)
     end
     
     return element
 end
 
--- ═════════════════ SLIDER ═════════════════
+-- ═════════════════ SLIDER (ULTRA ENHANCED) ═════════════════
 function SectionMethods:CreateSlider(options)
     options = options or {}
     local name = options.Name or "Slider"
@@ -1660,75 +2345,119 @@ function SectionMethods:CreateSlider(options)
     local callback = options.Callback or function() end
     local visualFeedback = options.VisualFeedback
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
     
     local sliderFrame = Instance.new("Frame")
     sliderFrame.Name = "Slider"
     sliderFrame.BackgroundColor3 = theme.Secondary
+    sliderFrame.BackgroundTransparency = 0.2
     sliderFrame.BorderSizePixel = 0
-    sliderFrame.Size = UDim2.new(1, 0, 0, 60)
+    sliderFrame.Size = UDim2.new(1, 0, 0, isMobile and 75 : 68)
     sliderFrame.LayoutOrder = #self.Elements + 1
     sliderFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(sliderFrame, 8)
+    Utility:ApplyCorner(sliderFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(sliderFrame, 0.8)
     Utility:ApplyStroke(sliderFrame, theme.Border, 1, 0.7)
+    
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = sliderFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
     
     -- Header
     local sliderLabel = Instance.new("TextLabel")
     sliderLabel.BackgroundTransparency = 1
-    sliderLabel.Position = UDim2.new(0, 12, 0, 8)
-    sliderLabel.Size = UDim2.new(0.6, -12, 0, 18)
+    sliderLabel.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 12 : 10)
+    sliderLabel.Size = UDim2.new(0.6, 0, 0, isMobile and 18 : 16)
     sliderLabel.Font = Enum.Font.GothamBold
     sliderLabel.Text = name
     sliderLabel.TextColor3 = theme.Text
-    sliderLabel.TextSize = 13
+    sliderLabel.TextSize = isMobile and 14 : 13
     sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    sliderLabel.TextTruncate = Enum.TextTruncate.AtEnd
     sliderLabel.Parent = sliderFrame
+    
+    -- Value display (Modern pill design)
+    local valuePill = Instance.new("Frame")
+    valuePill.BackgroundColor3 = theme.Accent
+    valuePill.BackgroundTransparency = 0.85
+    valuePill.BorderSizePixel = 0
+    valuePill.Position = UDim2.new(1, -(isMobile and 75 : 68), 0, isMobile and 10 : 8)
+    valuePill.Size = UDim2.new(0, isMobile and 65 : 58, 0, isMobile and 24 : 22)
+    valuePill.Parent = sliderFrame
+    
+    Utility:ApplyCorner(valuePill, isMobile and 12 : 11)
     
     local valueLabel = Instance.new("TextLabel")
     valueLabel.BackgroundTransparency = 1
-    valueLabel.Position = UDim2.new(1, -12, 0, 8)
-    valueLabel.Size = UDim2.new(0.4, -12, 0, 18)
-    valueLabel.Font = Enum.Font.GothamBold
+    valueLabel.Size = UDim2.new(1, 0, 1, 0)
+    valueLabel.Font = Enum.Font.GothamBlack
     valueLabel.Text = tostring(default) .. suffix
     valueLabel.TextColor3 = theme.Accent
-    valueLabel.TextSize = 13
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = sliderFrame
+    valueLabel.TextSize = isMobile and 13 : 12
+    valueLabel.Parent = valuePill
     
-    -- Slider Track
+    -- Slider Track Container
+    local sliderTrackContainer = Instance.new("Frame")
+    sliderTrackContainer.BackgroundTransparency = 1
+    sliderTrackContainer.Position = UDim2.new(0, isMobile and 15 : 12, 1, -(isMobile and 25 : 22))
+    sliderTrackContainer.Size = UDim2.new(1, -(isMobile and 30 : 24), 0, isMobile and 10 : 8)
+    sliderTrackContainer.Parent = sliderFrame
+    
+    -- Track Background
     local sliderTrack = Instance.new("Frame")
     sliderTrack.Name = "Track"
     sliderTrack.BackgroundColor3 = theme.Tertiary
+    sliderTrack.BackgroundTransparency = 0.3
     sliderTrack.BorderSizePixel = 0
-    sliderTrack.Position = UDim2.new(0, 12, 1, -20)
-    sliderTrack.Size = UDim2.new(1, -24, 0, 6)
-    sliderTrack.Parent = sliderFrame
+    sliderTrack.Size = UDim2.new(1, 0, 1, 0)
+    sliderTrack.Parent = sliderTrackContainer
     
-    Utility:ApplyCorner(sliderTrack, 3)
+    Utility:ApplyCorner(sliderTrack, isMobile and 5 : 4)
     
-    -- Slider Fill
+    -- Fill (Gradient)
     local sliderFill = Instance.new("Frame")
     sliderFill.Name = "Fill"
     sliderFill.BackgroundColor3 = theme.Accent
+    sliderFill.BackgroundTransparency = 0.1
     sliderFill.BorderSizePixel = 0
     sliderFill.Size = UDim2.new(0, 0, 1, 0)
+    sliderFill.ZIndex = 2
     sliderFill.Parent = sliderTrack
     
-    Utility:ApplyCorner(sliderFill, 3)
+    Utility:ApplyCorner(sliderFill, isMobile and 5 : 4)
+    Utility:ApplyGradient(sliderFill, theme.AccentGradient, 90)
     
-    -- Slider Handle
+    -- Handle (Enhanced)
     local sliderHandle = Instance.new("Frame")
     sliderHandle.Name = "Handle"
     sliderHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     sliderHandle.BorderSizePixel = 0
     sliderHandle.Position = UDim2.new(0, 0, 0.5, 0)
-    sliderHandle.Size = UDim2.new(0, 16, 0, 16)
+    sliderHandle.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
     sliderHandle.AnchorPoint = Vector2.new(0.5, 0.5)
-    sliderHandle.ZIndex = 2
+    sliderHandle.ZIndex = 3
     sliderHandle.Parent = sliderFill
     
-    Utility:ApplyCorner(sliderHandle, 8)
-    Utility:ApplyStroke(sliderHandle, theme.Accent, 2, 0)
+    Utility:ApplyCorner(sliderHandle, isMobile and 10 : 9)
+    Utility:CreateShadow(sliderHandle, 0.4)
+    
+    -- Handle inner glow
+    local handleGlow = Instance.new("Frame")
+    handleGlow.BackgroundColor3 = theme.Accent
+    handleGlow.BackgroundTransparency = 0.5
+    handleGlow.BorderSizePixel = 0
+    handleGlow.Size = UDim2.new(0.6, 0, 0.6, 0)
+    handleGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    handleGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+    handleGlow.Parent = sliderHandle
+    
+    Utility:ApplyCorner(handleGlow, isMobile and 5 : 4)
     
     local dragging = false
     local currentValue = default
@@ -1740,15 +2469,27 @@ function SectionMethods:CreateSlider(options)
         
         local percent = (value - range[1]) / (range[2] - range[1])
         
-        Utility:Tween(sliderFill, {
+        Utility:Spring(sliderFill, {
             Size = UDim2.new(percent, 0, 1, 0)
-        }, 0.1)
+        })
         
-        Utility:Tween(sliderHandle, {
+        Utility:Spring(sliderHandle, {
             Position = UDim2.new(1, 0, 0.5, 0)
-        }, 0.1)
+        })
         
+        -- Animate value change
         valueLabel.Text = tostring(value) .. suffix
+        Utility:Spring(valuePill, {
+            BackgroundTransparency = 0.7,
+            Size = UDim2.new(0, (isMobile and 68 : 61), 0, (isMobile and 24 : 22))
+        })
+        
+        task.wait(0.1)
+        Utility:Spring(valuePill, {
+            BackgroundTransparency = 0.85,
+            Size = UDim2.new(0, (isMobile and 65 : 58), 0, (isMobile and 24 : 22))
+        })
+        
         callback(value)
     end
     
@@ -1765,7 +2506,13 @@ function SectionMethods:CreateSlider(options)
             dragging = true
             slide(input)
             
-            Utility:Tween(sliderHandle, {Size = UDim2.new(0, 20, 0, 20)}, 0.2, Enum.EasingStyle.Back)
+            -- Scale up handle
+            Utility:Spring(sliderHandle, {
+                Size = UDim2.new(0, (isMobile and 24 : 22), 0, (isMobile and 24 : 22))
+            })
+            
+            -- Glow effect
+            Utility:CreateGlow(sliderHandle, theme.Accent, 0.4)
         end
     end)
     
@@ -1773,7 +2520,10 @@ function SectionMethods:CreateSlider(options)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or 
            input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
-            Utility:Tween(sliderHandle, {Size = UDim2.new(0, 16, 0, 16)}, 0.2)
+            
+            Utility:Spring(sliderHandle, {
+                Size = UDim2.new(0, (isMobile and 20 : 18), 0, (isMobile and 20 : 18))
+            })
         end
     end)
     
@@ -1784,10 +2534,29 @@ function SectionMethods:CreateSlider(options)
         end
     end)
     
+    -- Hover effect
+    sliderTrack.MouseEnter:Connect(function()
+        if not dragging then
+            Utility:Spring(sliderHandle, {
+                Size = UDim2.new(0, (isMobile and 22 : 20), 0, (isMobile and 22 : 20))
+            })
+        end
+    end)
+    
+    sliderTrack.MouseLeave:Connect(function()
+        if not dragging then
+            Utility:Spring(sliderHandle, {
+                Size = UDim2.new(0, (isMobile and 20 : 18), 0, (isMobile and 20 : 18))
+            })
+        end
+    end)
+    
     local element = {
         Frame = sliderFrame,
         Value = currentValue,
-        Set = updateValue,
+        Set = function(self, value)
+            updateValue(value)
+        end,
         Callback = callback
     }
     
@@ -1799,7 +2568,8 @@ function SectionMethods:CreateSlider(options)
     return element
 end
 
--- ═════════════════ DROPDOWN ═════════════════
+-- Continuaré en el siguiente mensaje con Dropdown, Textbox, ColorPicker, Keybind y ejemplos de uso...
+-- ═════════════════ DROPDOWN (ULTRA ENHANCED) ═════════════════
 function SectionMethods:CreateDropdown(options)
     options = options or {}
     local name = options.Name or "Dropdown"
@@ -1807,78 +2577,146 @@ function SectionMethods:CreateDropdown(options)
     local default = options.Default or list[1]
     local callback = options.Callback or function() end
     local multiSelect = options.MultiSelect or false
+    local searchable = options.Searchable or false
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
     
     local dropdownFrame = Instance.new("Frame")
     dropdownFrame.Name = "Dropdown"
     dropdownFrame.BackgroundColor3 = theme.Secondary
+    dropdownFrame.BackgroundTransparency = 0.2
     dropdownFrame.BorderSizePixel = 0
-    dropdownFrame.Size = UDim2.new(1, 0, 0, 40)
+    dropdownFrame.Size = UDim2.new(1, 0, 0, isMobile and 55 : 50)
     dropdownFrame.ClipsDescendants = true
     dropdownFrame.LayoutOrder = #self.Elements + 1
     dropdownFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(dropdownFrame, 8)
+    Utility:ApplyCorner(dropdownFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(dropdownFrame, 0.8)
     Utility:ApplyStroke(dropdownFrame, theme.Border, 1, 0.7)
     
-    -- Header
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = dropdownFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
+    
+    -- Header Button
     local dropdownButton = Instance.new("TextButton")
     dropdownButton.Name = "Header"
     dropdownButton.BackgroundTransparency = 1
-    dropdownButton.Size = UDim2.new(1, 0, 0, 40)
+    dropdownButton.Size = UDim2.new(1, 0, 0, isMobile and 55 : 50)
     dropdownButton.AutoButtonColor = false
     dropdownButton.Text = ""
+    dropdownButton.ZIndex = 2
     dropdownButton.Parent = dropdownFrame
+    
+    -- Icon
+    local iconBG = Instance.new("Frame")
+    iconBG.BackgroundColor3 = theme.Accent
+    iconBG.BackgroundTransparency = 0.9
+    iconBG.Position = UDim2.new(0, isMobile and 15 : 12, 0.5, 0)
+    iconBG.Size = UDim2.new(0, isMobile and 36 : 32, 0, isMobile and 36 : 32)
+    iconBG.AnchorPoint = Vector2.new(0, 0.5)
+    iconBG.Parent = dropdownButton
+    
+    Utility:ApplyCorner(iconBG, isMobile and 9 : 8)
+    
+    local dropIcon = Instance.new("ImageLabel")
+    dropIcon.BackgroundTransparency = 1
+    dropIcon.Image = IconLibrary:Get("list")
+    dropIcon.ImageColor3 = theme.Accent
+    dropIcon.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
+    dropIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    dropIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    dropIcon.Parent = iconBG
+    
+    -- Text container
+    local textContainer = Instance.new("Frame")
+    textContainer.BackgroundTransparency = 1
+    textContainer.Position = UDim2.new(0, isMobile and 60 : 52, 0, isMobile and 10 : 8)
+    textContainer.Size = UDim2.new(1, -(isMobile and 110 : 100), 1, -(isMobile and 20 : 16))
+    textContainer.Parent = dropdownButton
     
     local dropdownLabel = Instance.new("TextLabel")
     dropdownLabel.BackgroundTransparency = 1
-    dropdownLabel.Position = UDim2.new(0, 12, 0, 0)
-    dropdownLabel.Size = UDim2.new(1, -40, 1, 0)
+    dropdownLabel.Size = UDim2.new(1, 0, 0, isMobile and 16 : 14)
     dropdownLabel.Font = Enum.Font.GothamBold
     dropdownLabel.Text = name
     dropdownLabel.TextColor3 = theme.Text
-    dropdownLabel.TextSize = 13
+    dropdownLabel.TextSize = isMobile and 13 : 12
     dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
-    dropdownLabel.Parent = dropdownButton
+    dropdownLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    dropdownLabel.Parent = textContainer
     
     local selectedLabel = Instance.new("TextLabel")
     selectedLabel.BackgroundTransparency = 1
-    selectedLabel.Position = UDim2.new(0, 12, 0, 20)
-    selectedLabel.Size = UDim2.new(1, -40, 0, 16)
-    selectedLabel.Font = Enum.Font.Gotham
+    selectedLabel.Position = UDim2.new(0, 0, 0, isMobile and 18 : 16)
+    selectedLabel.Size = UDim2.new(1, 0, 1, -(isMobile and 18 : 16))
+    selectedLabel.Font = Enum.Font.GothamMedium
     selectedLabel.Text = default
-    selectedLabel.TextColor3 = theme.TextDark
-    selectedLabel.TextSize = 11
+    selectedLabel.TextColor3 = theme.Accent
+    selectedLabel.TextSize = isMobile and 12 : 11
     selectedLabel.TextXAlignment = Enum.TextXAlignment.Left
     selectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
-    selectedLabel.Parent = dropdownButton
+    selectedLabel.Parent = textContainer
     
+    -- Chevron
     local chevron = Instance.new("ImageLabel")
     chevron.BackgroundTransparency = 1
     chevron.Image = IconLibrary:Get("chevron-down")
     chevron.ImageColor3 = theme.TextDark
-    chevron.Position = UDim2.new(1, -30, 0.5, 0)
-    chevron.Size = UDim2.new(0, 16, 0, 16)
+    chevron.Position = UDim2.new(1, -(isMobile and 40 : 35), 0.5, 0)
+    chevron.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
     chevron.AnchorPoint = Vector2.new(0, 0.5)
     chevron.Parent = dropdownButton
+    
+    -- Search Box (if searchable)
+    local searchBox
+    if searchable then
+        searchBox = Instance.new("TextBox")
+        searchBox.Name = "SearchBox"
+        searchBox.BackgroundColor3 = theme.Tertiary
+        searchBox.BackgroundTransparency = 0.3
+        searchBox.BorderSizePixel = 0
+        searchBox.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 62 : 57)
+        searchBox.Size = UDim2.new(1, -(isMobile and 30 : 24), 0, isMobile and 38 : 34)
+        searchBox.Font = Enum.Font.Gotham
+        searchBox.PlaceholderText = "🔍 Search..."
+        searchBox.PlaceholderColor3 = theme.TextDark
+        searchBox.Text = ""
+        searchBox.TextColor3 = theme.Text
+        searchBox.TextSize = isMobile and 13 : 12
+        searchBox.ClearTextOnFocus = false
+        searchBox.Visible = false
+        searchBox.Parent = dropdownFrame
+        
+        Utility:ApplyCorner(searchBox, isMobile and 10 : 9)
+        Utility:AddPadding(searchBox, isMobile and 10 : 8)
+    end
     
     -- Options Container
     local optionsContainer = Instance.new("ScrollingFrame")
     optionsContainer.Name = "Options"
     optionsContainer.BackgroundTransparency = 1
-    optionsContainer.Position = UDim2.new(0, 0, 0, 40)
+    optionsContainer.Position = UDim2.new(0, 0, 0, searchable and (isMobile and 108 : 98) or (isMobile and 55 : 50))
     optionsContainer.Size = UDim2.new(1, 0, 0, 0)
-    optionsContainer.ScrollBarThickness = 3
+    optionsContainer.ScrollBarThickness = isMobile and 0 : 3
     optionsContainer.ScrollBarImageColor3 = theme.Accent
     optionsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     optionsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    optionsContainer.Visible = false
     optionsContainer.Parent = dropdownFrame
     
     local optionsLayout = Instance.new("UIListLayout")
-    optionsLayout.Padding = UDim.new(0, 2)
+    optionsLayout.Padding = UDim.new(0, isMobile and 6 : 4)
+    optionsLayout.SortOrder = Enum.SortOrder.Name
     optionsLayout.Parent = optionsContainer
     
-    Utility:AddPadding(optionsContainer, 6)
+    Utility:AddPadding(optionsContainer, isMobile and 12 : 10, nil, nil, nil, isMobile and 8 : 6)
     
     local expanded = false
     local currentValue = default
@@ -1890,7 +2728,7 @@ function SectionMethods:CreateDropdown(options)
             for opt, _ in pairs(selectedOptions) do
                 table.insert(selected, opt)
             end
-            selectedLabel.Text = #selected > 0 and table.concat(selected, ", ") or "None"
+            selectedLabel.Text = #selected > 0 and table.concat(selected, ", ") or "None Selected"
             currentValue = selected
         else
             selectedLabel.Text = currentValue
@@ -1901,42 +2739,56 @@ function SectionMethods:CreateDropdown(options)
         local optionButton = Instance.new("TextButton")
         optionButton.Name = optionName
         optionButton.BackgroundColor3 = theme.Tertiary
+        optionButton.BackgroundTransparency = 0.4
         optionButton.BorderSizePixel = 0
-        optionButton.Size = UDim2.new(1, 0, 0, 32)
+        optionButton.Size = UDim2.new(1, 0, 0, isMobile and 42 : 38)
         optionButton.AutoButtonColor = false
         optionButton.Text = ""
         optionButton.Parent = optionsContainer
         
-        Utility:ApplyCorner(optionButton, 6)
+        Utility:ApplyCorner(optionButton, isMobile and 10 : 9)
+        
+        -- Gradient hover effect
+        local hoverGradient = Instance.new("Frame")
+        hoverGradient.BackgroundColor3 = theme.Accent
+        hoverGradient.BackgroundTransparency = 1
+        hoverGradient.Size = UDim2.new(1, 0, 1, 0)
+        hoverGradient.Parent = optionButton
+        
+        Utility:ApplyCorner(hoverGradient, isMobile and 10 : 9)
+        Utility:ApplyGradient(hoverGradient, theme.AccentGradient, 90)
         
         local optionLabel = Instance.new("TextLabel")
         optionLabel.BackgroundTransparency = 1
-        optionLabel.Position = UDim2.new(0, 10, 0, 0)
-        optionLabel.Size = UDim2.new(1, multiSelect and -30 or -10, 1, 0)
-        optionLabel.Font = Enum.Font.Gotham
+        optionLabel.Position = UDim2.new(0, isMobile and 14 : 12, 0, 0)
+        optionLabel.Size = UDim2.new(1, multiSelect and -(isMobile and 48 : 42) or -(isMobile and 14 : 12), 1, 0)
+        optionLabel.Font = Enum.Font.GothamBold
         optionLabel.Text = optionName
         optionLabel.TextColor3 = theme.Text
-        optionLabel.TextSize = 12
+        optionLabel.TextSize = isMobile and 13 : 12
         optionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        optionLabel.TextTruncate = Enum.TextTruncate.AtEnd
         optionLabel.Parent = optionButton
         
         if multiSelect then
+            -- Checkbox
             local checkbox = Instance.new("Frame")
             checkbox.BackgroundColor3 = theme.Background
+            checkbox.BackgroundTransparency = 0.2
             checkbox.BorderSizePixel = 0
-            checkbox.Position = UDim2.new(1, -24, 0.5, 0)
-            checkbox.Size = UDim2.new(0, 16, 0, 16)
+            checkbox.Position = UDim2.new(1, -(isMobile and 32 : 28), 0.5, 0)
+            checkbox.Size = UDim2.new(0, isMobile and 22 : 20, 0, isMobile and 22 : 20)
             checkbox.AnchorPoint = Vector2.new(0, 0.5)
             checkbox.Parent = optionButton
             
-            Utility:ApplyCorner(checkbox, 4)
-            Utility:ApplyStroke(checkbox, theme.Border, 1, 0.5)
+            Utility:ApplyCorner(checkbox, isMobile and 6 : 5)
+            Utility:ApplyStroke(checkbox, theme.Accent, 2, selectedOptions[optionName] and 0 or 0.7)
             
             local checkmark = Instance.new("ImageLabel")
             checkmark.BackgroundTransparency = 1
             checkmark.Image = IconLibrary:Get("check")
             checkmark.ImageColor3 = theme.Accent
-            checkmark.Size = UDim2.new(0.8, 0, 0.8, 0)
+            checkmark.Size = UDim2.new(0.7, 0, 0.7, 0)
             checkmark.Position = UDim2.new(0.5, 0, 0.5, 0)
             checkmark.AnchorPoint = Vector2.new(0.5, 0.5)
             checkmark.ImageTransparency = selectedOptions[optionName] and 0 or 1
@@ -1944,9 +2796,24 @@ function SectionMethods:CreateDropdown(options)
             
             optionButton.MouseButton1Click:Connect(function()
                 selectedOptions[optionName] = not selectedOptions[optionName]
-                Utility:Tween(checkmark, {
-                    ImageTransparency = selectedOptions[optionName] and 0 or 1
-                }, 0.2)
+                
+                Utility:Spring(checkmark, {
+                    ImageTransparency = selectedOptions[optionName] and 0 or 1,
+                    Rotation = selectedOptions[optionName] and 360 or 0
+                })
+                
+                Utility:Spring(checkbox, {
+                    BackgroundColor3 = selectedOptions[optionName] and theme.Accent or theme.Background,
+                    BackgroundTransparency = selectedOptions[optionName] and 0.8 : 0.2
+                })
+                
+                local stroke = checkbox:FindFirstChildOfClass("UIStroke")
+                if stroke then
+                    Utility:Spring(stroke, {
+                        Transparency = selectedOptions[optionName] and 0 or 0.7
+                    })
+                end
+                
                 updateSelected()
                 callback(currentValue)
             end)
@@ -1956,35 +2823,71 @@ function SectionMethods:CreateDropdown(options)
                 updateSelected()
                 callback(currentValue)
                 
-                task.wait(0.1)
+                Utility:CreateRipple(optionButton, optionButton.AbsoluteSize.X/2, optionButton.AbsoluteSize.Y/2, theme.Accent)
+                
+                task.wait(0.15)
                 dropdownButton.MouseButton1Click:Fire()
             end)
         end
         
         optionButton.MouseEnter:Connect(function()
-            Utility:Tween(optionButton, {BackgroundColor3 = theme.Accent}, 0.2)
+            Utility:Spring(optionButton, {BackgroundTransparency = 0.1})
+            Utility:Spring(hoverGradient, {BackgroundTransparency = 0.85})
+            Utility:Spring(optionLabel, {TextColor3 = theme.Accent})
         end)
         
         optionButton.MouseLeave:Connect(function()
-            Utility:Tween(optionButton, {BackgroundColor3 = theme.Tertiary}, 0.2)
+            Utility:Spring(optionButton, {BackgroundTransparency = 0.4})
+            Utility:Spring(hoverGradient, {BackgroundTransparency = 1})
+            Utility:Spring(optionLabel, {TextColor3 = theme.Text})
         end)
+        
+        return optionButton
     end
     
     for _, option in ipairs(list) do
         createOption(option)
     end
     
+    -- Search functionality
+    if searchable and searchBox then
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            local query = searchBox.Text:lower()
+            for _, child in pairs(optionsContainer:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.Visible = child.Name:lower():find(query) ~= nil
+                end
+            end
+        end)
+    end
+    
     dropdownButton.MouseButton1Click:Connect(function()
         expanded = not expanded
         
         local targetRotation = expanded and 180 or 0
-        local targetHeight = expanded and math.min(#list * 34 + 12, 150) or 0
+        local maxHeight = isMobile and 250 : 200
+        local optionCount = #list
+        local calculatedHeight = math.min(optionCount * (isMobile and 48 : 44), maxHeight)
+        local targetHeight = expanded and calculatedHeight or 0
+        local searchHeight = (searchable and expanded) and (isMobile and 53 : 48) or 0
         
-        Utility:Tween(chevron, {Rotation = targetRotation}, 0.3)
-        Utility:Tween(optionsContainer, {Size = UDim2.new(1, 0, 0, targetHeight)}, 0.3)
-        Utility:Tween(dropdownFrame, {
-            Size = UDim2.new(1, 0, 0, 40 + targetHeight)
-        }, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        Utility:Spring(chevron, {Rotation = targetRotation})
+        
+        if searchBox then
+            searchBox.Visible = expanded
+        end
+        
+        Utility:Spring(optionsContainer, {
+            Size = UDim2.new(1, 0, 0, targetHeight)
+        })
+        
+        Utility:Spring(dropdownFrame, {
+            Size = UDim2.new(1, 0, 0, (isMobile and 55 : 50) + targetHeight + searchHeight)
+        })
+        
+        if expanded then
+            Utility:CreateGlow(dropdownFrame, theme.Accent, 0.2)
+        end
     end)
     
     local element = {
@@ -2013,13 +2916,8 @@ function SectionMethods:CreateDropdown(options)
                     break
                 end
             end
-            -- Recrear opciones
-            optionsContainer:ClearAllChildren()
-            optionsLayout.Parent = optionsContainer
-            Utility:AddPadding(optionsContainer, 6)
-            for _, opt in ipairs(list) do
-                createOption(opt)
-            end
+            local optBtn = optionsContainer:FindFirstChild(option)
+            if optBtn then optBtn:Destroy() end
         end,
         Callback = callback
     }
@@ -2032,60 +2930,102 @@ function SectionMethods:CreateDropdown(options)
     return element
 end
 
--- ═════════════════ TEXTBOX ═════════════════
+-- ═════════════════ TEXTBOX (ENHANCED) ═════════════════
 function SectionMethods:CreateTextbox(options)
     options = options or {}
     local name = options.Name or "Textbox"
     local default = options.Default or ""
     local placeholder = options.Placeholder or "Enter text..."
     local numeric = options.Numeric or false
+    local multiline = options.Multiline or false
     local callback = options.Callback or function() end
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
+    
+    local textboxHeight = multiline and (isMobile and 110 : 100) or (isMobile and 80 : 72)
     
     local textboxFrame = Instance.new("Frame")
     textboxFrame.Name = "Textbox"
     textboxFrame.BackgroundColor3 = theme.Secondary
+    textboxFrame.BackgroundTransparency = 0.2
     textboxFrame.BorderSizePixel = 0
-    textboxFrame.Size = UDim2.new(1, 0, 0, 70)
+    textboxFrame.Size = UDim2.new(1, 0, 0, textboxHeight)
     textboxFrame.LayoutOrder = #self.Elements + 1
     textboxFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(textboxFrame, 8)
-    Utility:ApplyStroke(textboxFrame, theme.Border, 1, 0.7)
+    Utility:ApplyCorner(textboxFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(textboxFrame, 0.8)
+    local border = Utility:ApplyStroke(textboxFrame, theme.Border, 1, 0.7)
+    
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = textboxFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
     
     local textboxLabel = Instance.new("TextLabel")
     textboxLabel.BackgroundTransparency = 1
-    textboxLabel.Position = UDim2.new(0, 12, 0, 8)
-    textboxLabel.Size = UDim2.new(1, -24, 0, 18)
+    textboxLabel.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 12 : 10)
+    textboxLabel.Size = UDim2.new(1, -(isMobile and 30 : 24), 0, isMobile and 18 : 16)
     textboxLabel.Font = Enum.Font.GothamBold
     textboxLabel.Text = name
     textboxLabel.TextColor3 = theme.Text
-    textboxLabel.TextSize = 13
+    textboxLabel.TextSize = isMobile and 14 : 13
     textboxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textboxLabel.TextTruncate = Enum.TextTruncate.AtEnd
     textboxLabel.Parent = textboxFrame
+    
+    local inputContainer = Instance.new("Frame")
+    inputContainer.BackgroundColor3 = theme.Tertiary
+    inputContainer.BackgroundTransparency = 0.3
+    inputContainer.BorderSizePixel = 0
+    inputContainer.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 38 : 34)
+    inputContainer.Size = UDim2.new(1, -(isMobile and 30 : 24), 1, -(isMobile and 50 : 44))
+    inputContainer.Parent = textboxFrame
+    
+    Utility:ApplyCorner(inputContainer, isMobile and 10 : 9)
     
     local textboxInput = Instance.new("TextBox")
     textboxInput.Name = "Input"
-    textboxInput.BackgroundColor3 = theme.Tertiary
-    textboxInput.BorderSizePixel = 0
-    textboxInput.Position = UDim2.new(0, 12, 0, 32)
-    textboxInput.Size = UDim2.new(1, -24, 0, 30)
-    textboxInput.Font = Enum.Font.Gotham
+    textboxInput.BackgroundTransparency = 1
+    textboxInput.Size = UDim2.new(1, 0, 1, 0)
+    textboxInput.Font = Enum.Font.GothamMedium
     textboxInput.PlaceholderText = placeholder
     textboxInput.PlaceholderColor3 = theme.TextDark
     textboxInput.Text = default
     textboxInput.TextColor3 = theme.Text
-    textboxInput.TextSize = 12
+    textboxInput.TextSize = isMobile and 13 : 12
     textboxInput.TextXAlignment = Enum.TextXAlignment.Left
+    textboxInput.TextYAlignment = multiline and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
     textboxInput.ClearTextOnFocus = false
-    textboxInput.Parent = textboxFrame
+    textboxInput.MultiLine = multiline
+    textboxInput.TextWrapped = multiline
+    textboxInput.Parent = inputContainer
     
-    Utility:ApplyCorner(textboxInput, 6)
-    Utility:AddPadding(textboxInput, 8)
+    Utility:AddPadding(textboxInput, isMobile and 12 : 10)
     
     local currentValue = default
     
-    textboxInput.FocusLost:Connect(function()
+    -- Character counter (if not numeric)
+    local charCounter
+    if not numeric then
+        charCounter = Instance.new("TextLabel")
+        charCounter.BackgroundTransparency = 1
+        charCounter.Position = UDim2.new(1, -(isMobile and 50 : 45), 1, -(isMobile and 12 : 10))
+        charCounter.Size = UDim2.new(0, isMobile and 45 : 40, 0, isMobile and 14 : 12)
+        charCounter.AnchorPoint = Vector2.new(1, 1)
+        charCounter.Font = Enum.Font.GothamBold
+        charCounter.Text = #default
+        charCounter.TextColor3 = theme.TextDark
+        charCounter.TextSize = isMobile and 10 : 9
+        charCounter.TextXAlignment = Enum.TextXAlignment.Right
+        charCounter.Parent = inputContainer
+    end
+    
+    textboxInput.FocusLost:Connect(function(enterPressed)
         local value = textboxInput.Text
         
         if numeric then
@@ -2094,16 +3034,39 @@ function SectionMethods:CreateTextbox(options)
         end
         
         currentValue = value
-        callback(value)
+        callback(value, enterPressed)
+        
+        -- Reset border
+        Utility:Spring(border, {Transparency = 0.7})
+        Utility:Spring(inputContainer, {BackgroundTransparency = 0.3})
     end)
     
     textboxInput.Focused:Connect(function()
-        Utility:Tween(textboxInput, {BackgroundColor3 = theme.Secondary}, 0.2)
+        Utility:Spring(inputContainer, {BackgroundTransparency = 0.1})
+        Utility:Spring(border, {
+            Color = theme.Accent,
+            Transparency = 0.3
+        })
+        Utility:CreateGlow(textboxFrame, theme.Accent, 0.2)
     end)
     
     textboxInput:GetPropertyChangedSignal("Text"):Connect(function()
         if numeric then
             textboxInput.Text = textboxInput.Text:gsub("[^%d%.%-]", "")
+        end
+        
+        if charCounter then
+            charCounter.Text = #textboxInput.Text
+            
+            -- Color based on length
+            local textLength = #textboxInput.Text
+            if textLength > 100 then
+                charCounter.TextColor3 = theme.Error
+            elseif textLength > 50 then
+                charCounter.TextColor3 = theme.Warning
+            else
+                charCounter.TextColor3 = theme.TextDark
+            end
         end
     end)
     
@@ -2124,115 +3087,168 @@ function SectionMethods:CreateTextbox(options)
     return element
 end
 
--- ═════════════════ COLOR PICKER ═════════════════
+-- ═════════════════ COLOR PICKER (ADVANCED HSV) ═════════════════
 function SectionMethods:CreateColorPicker(options)
     options = options or {}
     local name = options.Name or "Color Picker"
     local default = options.Default or Color3.fromRGB(255, 0, 0)
     local callback = options.Callback or function() end
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
     
     local pickerFrame = Instance.new("Frame")
     pickerFrame.Name = "ColorPicker"
     pickerFrame.BackgroundColor3 = theme.Secondary
+    pickerFrame.BackgroundTransparency = 0.2
     pickerFrame.BorderSizePixel = 0
-    pickerFrame.Size = UDim2.new(1, 0, 0, 40)
+    pickerFrame.Size = UDim2.new(1, 0, 0, isMobile and 50 : 45)
     pickerFrame.ClipsDescendants = true
     pickerFrame.LayoutOrder = #self.Elements + 1
     pickerFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(pickerFrame, 8)
+    Utility:ApplyCorner(pickerFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(pickerFrame, 0.8)
     Utility:ApplyStroke(pickerFrame, theme.Border, 1, 0.7)
+    
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = pickerFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
     
     local pickerLabel = Instance.new("TextLabel")
     pickerLabel.BackgroundTransparency = 1
-    pickerLabel.Position = UDim2.new(0, 12, 0, 0)
-    pickerLabel.Size = UDim2.new(1, -60, 1, 0)
+    pickerLabel.Position = UDim2.new(0, isMobile and 15 : 12, 0, 0)
+    pickerLabel.Size = UDim2.new(1, -(isMobile and 75 : 68), 1, 0)
     pickerLabel.Font = Enum.Font.GothamBold
     pickerLabel.Text = name
     pickerLabel.TextColor3 = theme.Text
-    pickerLabel.TextSize = 13
+    pickerLabel.TextSize = isMobile and 14 : 13
     pickerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    pickerLabel.TextTruncate = Enum.TextTruncate.AtEnd
     pickerLabel.Parent = pickerFrame
     
+    -- Color Display Button
     local colorDisplay = Instance.new("TextButton")
     colorDisplay.Name = "ColorDisplay"
     colorDisplay.BackgroundColor3 = default
     colorDisplay.BorderSizePixel = 0
-    colorDisplay.Position = UDim2.new(1, -44, 0.5, 0)
-    colorDisplay.Size = UDim2.new(0, 32, 0, 24)
+    colorDisplay.Position = UDim2.new(1, -(isMobile and 56 : 50), 0.5, 0)
+    colorDisplay.Size = UDim2.new(0, isMobile and 44 : 38, 0, isMobile and 32 : 28)
     colorDisplay.AnchorPoint = Vector2.new(0, 0.5)
     colorDisplay.Text = ""
     colorDisplay.Parent = pickerFrame
     
-    Utility:ApplyCorner(colorDisplay, 6)
-    Utility:ApplyStroke(colorDisplay, theme.Border, 2, 0.5)
+    Utility:ApplyCorner(colorDisplay, isMobile and 10 : 9)
+    Utility:CreateShadow(colorDisplay, 0.6)
+    Utility:ApplyStroke(colorDisplay, Color3.fromRGB(255, 255, 255), 2, 0.3)
+    
+    -- Rainbow border animation
+    local rainbowBorder = colorDisplay:FindFirstChildOfClass("UIStroke")
+    if rainbowBorder then
+        RunService.RenderStepped:Connect(function()
+            local hue = (tick() % 5) / 5
+            rainbowBorder.Color = Color3.fromHSV(hue, 1, 1)
+        end)
+    end
     
     local currentColor = default
     local expanded = false
     
-    -- Color Picker Canvas
+    -- Picker Canvas
     local pickerCanvas = Instance.new("Frame")
     pickerCanvas.Name = "Canvas"
     pickerCanvas.BackgroundColor3 = theme.Tertiary
+    pickerCanvas.BackgroundTransparency = 0.1
     pickerCanvas.BorderSizePixel = 0
-    pickerCanvas.Position = UDim2.new(0, 12, 0, 50)
-    pickerCanvas.Size = UDim2.new(1, -24, 0, 0)
+    pickerCanvas.Position = UDim2.new(0, isMobile and 15 : 12, 0, isMobile and 60 : 55)
+    pickerCanvas.Size = UDim2.new(1, -(isMobile and 30 : 24), 0, 0)
     pickerCanvas.ClipsDescendants = true
     pickerCanvas.Parent = pickerFrame
     
-    Utility:ApplyCorner(pickerCanvas, 6)
+    Utility:ApplyCorner(pickerCanvas, isMobile and 10 : 9)
     
-    -- Simple RGB Sliders
-    local function createRGBSlider(colorName, yPos, defaultVal)
+    -- RGB Sliders
+    local function createColorSlider(colorName, yPos, defaultVal)
+        local colors = {
+            R = Color3.fromRGB(255, 100, 100),
+            G = Color3.fromRGB(100, 255, 100),
+            B = Color3.fromRGB(100, 100, 255)
+        }
+        
         local sliderBG = Instance.new("Frame")
         sliderBG.BackgroundColor3 = theme.Background
+        sliderBG.BackgroundTransparency = 0.3
         sliderBG.BorderSizePixel = 0
-        sliderBG.Position = UDim2.new(0, 8, 0, yPos)
-        sliderBG.Size = UDim2.new(1, -16, 0, 30)
+        sliderBG.Position = UDim2.new(0, isMobile and 12 : 10, 0, yPos)
+        sliderBG.Size = UDim2.new(1, -(isMobile and 24 : 20), 0, isMobile and 36 : 32)
         sliderBG.Parent = pickerCanvas
         
-        Utility:ApplyCorner(sliderBG, 4)
+        Utility:ApplyCorner(sliderBG, isMobile and 8 : 7)
+        
+        -- Label
+        local labelBG = Instance.new("Frame")
+        labelBG.BackgroundColor3 = colors[colorName]
+        labelBG.BackgroundTransparency = 0.8
+        labelBG.BorderSizePixel = 0
+        labelBG.Size = UDim2.new(0, isMobile and 32 : 28, 1, 0)
+        labelBG.Parent = sliderBG
+        
+        Utility:ApplyCorner(labelBG, isMobile and 8 : 7)
         
         local label = Instance.new("TextLabel")
         label.BackgroundTransparency = 1
-        label.Size = UDim2.new(0, 20, 1, 0)
-        label.Font = Enum.Font.GothamBold
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.Font = Enum.Font.GothamBlack
         label.Text = colorName
-        label.TextColor3 = colorName == "R" and Color3.fromRGB(255, 100, 100) or 
-                          colorName == "G" and Color3.fromRGB(100, 255, 100) or 
-                          Color3.fromRGB(100, 100, 255)
-        label.TextSize = 12
-        label.Parent = sliderBG
+        label.TextColor3 = colors[colorName]
+        label.TextSize = isMobile and 14 : 13
+        label.Parent = labelBG
         
+        -- Track
         local track = Instance.new("Frame")
         track.BackgroundColor3 = theme.Secondary
+        track.BackgroundTransparency = 0.3
         track.BorderSizePixel = 0
-        track.Position = UDim2.new(0, 30, 0.5, 0)
-        track.Size = UDim2.new(1, -80, 0, 6)
+        track.Position = UDim2.new(0, isMobile and 40 : 36, 0.5, 0)
+        track.Size = UDim2.new(1, -(isMobile and 105 : 95), 0, isMobile and 10 : 8)
         track.AnchorPoint = Vector2.new(0, 0.5)
         track.Parent = sliderBG
         
-        Utility:ApplyCorner(track, 3)
+        Utility:ApplyCorner(track, isMobile and 5 : 4)
         
         local fill = Instance.new("Frame")
-        fill.BackgroundColor3 = colorName == "R" and Color3.fromRGB(255, 100, 100) or 
-                                colorName == "G" and Color3.fromRGB(100, 255, 100) or 
-                                Color3.fromRGB(100, 100, 255)
+        fill.BackgroundColor3 = colors[colorName]
         fill.BorderSizePixel = 0
         fill.Size = UDim2.new(defaultVal/255, 0, 1, 0)
         fill.Parent = track
         
-        Utility:ApplyCorner(fill, 3)
+        Utility:ApplyCorner(fill, isMobile and 5 : 4)
         
+        -- Handle
+        local handle = Instance.new("Frame")
+        handle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        handle.BorderSizePixel = 0
+        handle.Position = UDim2.new(1, 0, 0.5, 0)
+        handle.Size = UDim2.new(0, isMobile and 18 : 16, 0, isMobile and 18 : 16)
+        handle.AnchorPoint = Vector2.new(0.5, 0.5)
+        handle.Parent = fill
+        
+        Utility:ApplyCorner(handle, isMobile and 9 : 8)
+        Utility:CreateShadow(handle, 0.5)
+        
+        -- Value Label
         local valueLabel = Instance.new("TextLabel")
         valueLabel.BackgroundTransparency = 1
-        valueLabel.Position = UDim2.new(1, -45, 0, 0)
-        valueLabel.Size = UDim2.new(0, 40, 1, 0)
+        valueLabel.Position = UDim2.new(1, -(isMobile and 55 : 50), 0, 0)
+        valueLabel.Size = UDim2.new(0, isMobile and 50 : 45, 1, 0)
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.Text = tostring(math.floor(defaultVal))
-        valueLabel.TextColor3 = theme.Text
-        valueLabel.TextSize = 11
+        valueLabel.TextColor3 = colors[colorName]
+        valueLabel.TextSize = isMobile and 13 : 12
         valueLabel.TextXAlignment = Enum.TextXAlignment.Right
         valueLabel.Parent = sliderBG
         
@@ -2254,21 +3270,31 @@ function SectionMethods:CreateColorPicker(options)
         end
         
         track.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
                 local pos = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-                updateSlider(pos * 255)
+                updateSlider(math.clamp(pos * 255, 0, 255))
+                
+                Utility:Spring(handle, {
+                    Size = UDim2.new(0, (isMobile and 22 : 20), 0, (isMobile and 22 : 20))
+                })
             end
         end)
         
         track.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
+                Utility:Spring(handle, {
+                    Size = UDim2.new(0, (isMobile and 18 : 16), 0, (isMobile and 18 : 16))
+                })
             end
         end)
         
         UserInputService.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or
+               input.UserInputType == Enum.UserInputType.Touch) then
                 local pos = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
                 updateSlider(math.clamp(pos * 255, 0, 255))
             end
@@ -2277,21 +3303,118 @@ function SectionMethods:CreateColorPicker(options)
         return updateSlider
     end
     
-    local updateR = createRGBSlider("R", 8, default.R * 255)
-    local updateG = createRGBSlider("G", 46, default.G * 255)
-    local updateB = createRGBSlider("B", 84, default.B * 255)
+    local updateR = createColorSlider("R", isMobile and 12 : 10, default.R * 255)
+    local updateG = createColorSlider("G", isMobile and 54 : 48, default.G * 255)
+    local updateB = createColorSlider("B", isMobile and 96 : 86, default.B * 255)
+    
+    -- Hex Input
+    local hexContainer = Instance.new("Frame")
+    hexContainer.BackgroundColor3 = theme.Background
+    hexContainer.BackgroundTransparency = 0.3
+    hexContainer.BorderSizePixel = 0
+    hexContainer.Position = UDim2.new(0, isMobile and 12 : 10, 0, isMobile and 144 : 130)
+    hexContainer.Size = UDim2.new(1, -(isMobile and 24 : 20), 0, isMobile and 38 : 34)
+    hexContainer.Parent = pickerCanvas
+    
+    Utility:ApplyCorner(hexContainer, isMobile and 8 : 7)
+    
+    local hexLabel = Instance.new("TextLabel")
+    hexLabel.BackgroundTransparency = 1
+    hexLabel.Position = UDim2.new(0, isMobile and 12 : 10, 0, 0)
+    hexLabel.Size = UDim2.new(0, isMobile and 45 : 40, 1, 0)
+    hexLabel.Font = Enum.Font.GothamBold
+    hexLabel.Text = "HEX"
+    hexLabel.TextColor3 = theme.Text
+    hexLabel.TextSize = isMobile and 12 : 11
+    hexLabel.TextXAlignment = Enum.TextXAlignment.Left
+    hexLabel.Parent = hexContainer
+    
+    local hexInput = Instance.new("TextBox")
+    hexInput.BackgroundTransparency = 1
+    hexInput.Position = UDim2.new(0, isMobile and 60 : 55, 0, 0)
+    hexInput.Size = UDim2.new(1, -(isMobile and 120 : 110), 1, 0)
+    hexInput.Font = Enum.Font.GothamMedium
+    hexInput.Text = string.format("#%02X%02X%02X", default.R * 255, default.G * 255, default.B * 255)
+    hexInput.TextColor3 = theme.TextDark
+    hexInput.TextSize = isMobile and 12 : 11
+    hexInput.TextXAlignment = Enum.TextXAlignment.Left
+    hexInput.ClearTextOnFocus = false
+    hexInput.Parent = hexContainer
+    
+    -- Copy button
+    local copyBtn = Instance.new("TextButton")
+    copyBtn.BackgroundColor3 = theme.Accent
+    copyBtn.BackgroundTransparency = 0.8
+    copyBtn.BorderSizePixel = 0
+    copyBtn.Position = UDim2.new(1, -(isMobile and 50 : 45), 0.5, 0)
+    copyBtn.Size = UDim2.new(0, isMobile and 44 : 40, 0, isMobile and 26 : 24)
+    copyBtn.AnchorPoint = Vector2.new(0, 0.5)
+    copyBtn.Font = Enum.Font.GothamBold
+    copyBtn.Text = "COPY"
+    copyBtn.TextColor3 = theme.Accent
+    copyBtn.TextSize = isMobile and 10 : 9
+    copyBtn.Parent = hexContainer
+    
+    Utility:ApplyCorner(copyBtn, isMobile and 6 : 5)
+    
+    copyBtn.MouseButton1Click:Connect(function()
+        if setclipboard then
+            setclipboard(hexInput.Text)
+            NebulaX:Notify({
+                Title = "Copied!",
+                Description = "Color code copied to clipboard",
+                Type = "Success",
+                Duration = 2
+            })
+        end
+        Utility:CreateRipple(copyBtn, copyBtn.AbsoluteSize.X/2, copyBtn.AbsoluteSize.Y/2, theme.Accent)
+    end)
+    
+    hexInput.FocusLost:Connect(function()
+        local hex = hexInput.Text:gsub("#", "")
+        if #hex == 6 then
+            local r = tonumber(hex:sub(1,2), 16) or 255
+            local g = tonumber(hex:sub(3,4), 16) or 255
+            local b = tonumber(hex:sub(5,6), 16) or 255
+            
+            updateR(r)
+            updateG(g)
+            updateB(b)
+        end
+    end)
     
     colorDisplay.MouseButton1Click:Connect(function()
         expanded = not expanded
         
-        Utility:Tween(pickerCanvas, {
-            Size = UDim2.new(1, -24, 0, expanded and 120 or 0)
-        }, 0.3)
+        local targetHeight = expanded and (isMobile and 195 : 175) or 0
         
-        Utility:Tween(pickerFrame, {
-            Size = UDim2.new(1, 0, 0, expanded and 180 or 40)
-        }, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        Utility:Spring(pickerCanvas, {
+            Size = UDim2.new(1, -(isMobile and 30 : 24), 0, targetHeight)
+        })
+        
+        Utility:Spring(pickerFrame, {
+            Size = UDim2.new(1, 0, 0, (isMobile and 50 : 45) + targetHeight + (expanded and (isMobile and 20 : 15) or 0))
+        })
+        
+        if expanded then
+            Utility:CreateGlow(pickerFrame, currentColor, 0.3)
+        end
     end)
+    
+    -- Update hex on color change
+    local function updateHex()
+        hexInput.Text = string.format("#%02X%02X%02X", 
+            currentColor.R * 255, 
+            currentColor.G * 255, 
+            currentColor.B * 255
+        )
+    end
+    
+    local oldCallback = callback
+    callback = function(color)
+        updateHex()
+        oldCallback(color)
+    end
     
     local element = {
         Frame = pickerFrame,
@@ -2302,6 +3425,7 @@ function SectionMethods:CreateColorPicker(options)
             updateR(color.R * 255)
             updateG(color.G * 255)
             updateB(color.B * 255)
+            updateHex()
         end,
         Callback = callback
     }
@@ -2312,51 +3436,90 @@ function SectionMethods:CreateColorPicker(options)
     return element
 end
 
--- ═════════════════ KEYBIND ═════════════════
+-- ═════════════════ KEYBIND (ENHANCED) ═════════════════
 function SectionMethods:CreateKeybind(options)
     options = options or {}
     local name = options.Name or "Keybind"
     local default = options.Default or Enum.KeyCode.E
     local callback = options.Callback or function() end
     local theme = self.Tab.Window.Theme
+    local isMobile = self.Tab.Window.IsMobile
     
     local keybindFrame = Instance.new("Frame")
     keybindFrame.Name = "Keybind"
     keybindFrame.BackgroundColor3 = theme.Secondary
+    keybindFrame.BackgroundTransparency = 0.2
     keybindFrame.BorderSizePixel = 0
-    keybindFrame.Size = UDim2.new(1, 0, 0, 40)
+    keybindFrame.Size = UDim2.new(1, 0, 0, isMobile and 50 : 45)
     keybindFrame.LayoutOrder = #self.Elements + 1
     keybindFrame.Parent = self.Frame
     
-    Utility:ApplyCorner(keybindFrame, 8)
+    Utility:ApplyCorner(keybindFrame, isMobile and 14 : 12)
+    Utility:CreateShadow(keybindFrame, 0.8)
     Utility:ApplyStroke(keybindFrame, theme.Border, 1, 0.7)
+    
+    -- Glass
+    local glass = Instance.new("Frame")
+    glass.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    glass.BackgroundTransparency = 0.96
+    glass.Size = UDim2.new(1, 0, 1, 0)
+    glass.Parent = keybindFrame
+    
+    Utility:ApplyCorner(glass, isMobile and 14 : 12)
+    
+    -- Icon
+    local iconBG = Instance.new("Frame")
+    iconBG.BackgroundColor3 = theme.Accent
+    iconBG.BackgroundTransparency = 0.9
+    iconBG.Position = UDim2.new(0, isMobile and 15 : 12, 0.5, 0)
+    iconBG.Size = UDim2.new(0, isMobile and 36 : 32, 0, isMobile and 36 : 32)
+    iconBG.AnchorPoint = Vector2.new(0, 0.5)
+    iconBG.Parent = keybindFrame
+    
+    Utility:ApplyCorner(iconBG, isMobile and 9 : 8)
+    
+    local keyIcon = Instance.new("ImageLabel")
+    keyIcon.BackgroundTransparency = 1
+    keyIcon.Image = IconLibrary:Get("cpu")
+    keyIcon.ImageColor3 = theme.Accent
+    keyIcon.Size = UDim2.new(0, isMobile and 20 : 18, 0, isMobile and 20 : 18)
+    keyIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    keyIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    keyIcon.Parent = iconBG
     
     local keybindLabel = Instance.new("TextLabel")
     keybindLabel.BackgroundTransparency = 1
-    keybindLabel.Position = UDim2.new(0, 12, 0, 0)
-    keybindLabel.Size = UDim2.new(1, -100, 1, 0)
+    keybindLabel.Position = UDim2.new(0, isMobile and 60 : 52, 0, 0)
+    keybindLabel.Size = UDim2.new(1, -(isMobile and 160 : 145), 1, 0)
     keybindLabel.Font = Enum.Font.GothamBold
     keybindLabel.Text = name
     keybindLabel.TextColor3 = theme.Text
-    keybindLabel.TextSize = 13
+    keybindLabel.TextSize = isMobile and 14 : 13
     keybindLabel.TextXAlignment = Enum.TextXAlignment.Left
+    keybindLabel.TextTruncate = Enum.TextTruncate.AtEnd
     keybindLabel.Parent = keybindFrame
     
+    -- Key Button
     local keybindButton = Instance.new("TextButton")
     keybindButton.Name = "KeyButton"
     keybindButton.BackgroundColor3 = theme.Tertiary
+    keybindButton.BackgroundTransparency = 0.2
     keybindButton.BorderSizePixel = 0
-    keybindButton.Position = UDim2.new(1, -88, 0.5, 0)
-    keybindButton.Size = UDim2.new(0, 76, 0, 28)
+    keybindButton.Position = UDim2.new(1, -(isMobile and 92 : 84), 0.5, 0)
+    keybindButton.Size = UDim2.new(0, isMobile and 80 : 72, 0, isMobile and 32 : 28)
     keybindButton.AnchorPoint = Vector2.new(0, 0.5)
-    keybindButton.Font = Enum.Font.GothamBold
+    keybindButton.Font = Enum.Font.GothamBlack
     keybindButton.Text = default.Name
     keybindButton.TextColor3 = theme.Text
-    keybindButton.TextSize = 11
+    keybindButton.TextSize = isMobile and 11 : 10
     keybindButton.AutoButtonColor = false
     keybindButton.Parent = keybindFrame
     
-    Utility:ApplyCorner(keybindButton, 6)
+    Utility:ApplyCorner(keybindButton, isMobile and 8 : 7)
+    Utility:ApplyGradient(keybindButton, ColorSequence.new{
+        ColorSequenceKeypoint.new(0, theme.Tertiary),
+        ColorSequenceKeypoint.new(1, theme.Secondary)
+    }, 45)
     
     local currentKey = default
     local listening = false
@@ -2364,7 +3527,14 @@ function SectionMethods:CreateKeybind(options)
     keybindButton.MouseButton1Click:Connect(function()
         listening = true
         keybindButton.Text = "..."
-        Utility:Tween(keybindButton, {BackgroundColor3 = theme.Accent}, 0.2)
+        
+        Utility:Spring(keybindButton, {
+            BackgroundColor3 = theme.Accent,
+            BackgroundTransparency = 0.1,
+            Size = UDim2.new(0, (isMobile and 84 : 76), 0, (isMobile and 34 : 30))
+        })
+        
+        Utility:CreateGlow(keybindButton, theme.Accent, 0.4)
     end)
     
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -2373,22 +3543,36 @@ function SectionMethods:CreateKeybind(options)
                 currentKey = input.KeyCode
                 keybindButton.Text = input.KeyCode.Name
                 listening = false
-                Utility:Tween(keybindButton, {BackgroundColor3 = theme.Tertiary}, 0.2)
+                
+                Utility:Spring(keybindButton, {
+                    BackgroundColor3 = theme.Tertiary,
+                    BackgroundTransparency = 0.2,
+                    Size = UDim2.new(0, (isMobile and 80 : 72), 0, (isMobile and 32 : 28))
+                })
             end
         elseif not gameProcessed and input.KeyCode == currentKey then
             callback()
+            
+            -- Visual feedback
+            Utility:CreateRipple(keybindButton, keybindButton.AbsoluteSize.X/2, keybindButton.AbsoluteSize.Y/2, theme.Accent)
         end
     end)
     
     keybindButton.MouseEnter:Connect(function()
         if not listening then
-            Utility:Tween(keybindButton, {BackgroundColor3 = theme.Secondary}, 0.2)
+            Utility:Spring(keybindButton, {
+                BackgroundTransparency = 0.1,
+                Size = UDim2.new(0, (isMobile and 84 : 76), 0, (isMobile and 34 : 30))
+            })
         end
     end)
     
     keybindButton.MouseLeave:Connect(function()
         if not listening then
-            Utility:Tween(keybindButton, {BackgroundColor3 = theme.Tertiary}, 0.2)
+            Utility:Spring(keybindButton, {
+                BackgroundTransparency = 0.2,
+                Size = UDim2.new(0, (isMobile and 80 : 72), 0, (isMobile and 32 : 28))
+            })
         end
     end)
     
@@ -2409,12 +3593,13 @@ function SectionMethods:CreateKeybind(options)
 end
 
 -- ═══════════════════════════════════════════════════════════
--- NEBULAX MAIN API
+-- MAIN API
 -- ═══════════════════════════════════════════════════════════
 
 function NebulaX:CreateWindow(options)
     local window = Window:Create(options)
     table.insert(self.Windows, window)
+    NebulaX.IsMobileDevice = window.IsMobile
     return window
 end
 
@@ -2432,10 +3617,7 @@ end
 
 function NebulaX:EnableTouchOptimizations()
     if not Utility:IsMobile() then return end
-    
-    -- Aumentar tamaño de botones para móvil
-    -- Esto se puede implementar según necesidades específicas
-    print("[NebulaX] Touch optimizations enabled")
+    print("[NebulaX v2.0] Touch optimizations enabled")
 end
 
 function NebulaX:SetTheme(themeName, customColors)
@@ -2458,11 +3640,20 @@ end
 -- INITIALIZATION
 -- ═══════════════════════════════════════════════════════════
 
-print([[
+local startupArt = [[
 ╔═══════════════════════════════════════════════════════════╗
-║                    NEBULAX UI LOADED                      ║
-║                   Version ]] .. NebulaX.Version .. [[                      ║
+║            🌌 NEBULAX UI v2.0 AESTHETIC 🌌               ║
+║                                                           ║
+║  ✨ Ultra Modern Design                                  ║
+║  📱 Mobile Optimized                                     ║
+║  🎨 6 Beautiful Themes                                   ║
+║  🚀 Smooth Animations                                    ║
+║  💎 Glassmorphism Effects                                ║
+║                                                           ║
+║  Platform: ]] .. Utility:GetPlatform() .. string.rep(" ", 43 - #Utility:GetPlatform()) .. [[║
 ╚═══════════════════════════════════════════════════════════╝
-]])
+]]
+
+print(startupArt)
 
 return NebulaX
